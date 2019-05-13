@@ -8,15 +8,56 @@
 
 // struct que almacena de información para operar en el archivo
 typedef struct crFILE{
-	FILE* archivo;
+	//FIXME
+	FILE* cursor;
+	FILE* root;
 } crFILE;
+
+crFILE puntero;
+
+
+char* move(char* path ){
+
+	char* folder = strtok(path, "/");
+	unsigned char *buffer = malloc( sizeof( unsigned char ) * 32 );
+	unsigned int* tmp;
+
+	while(folder){
+
+		for( int i = 0; i < 64; i++ ) {
+			fseek( puntero.root, 32 * i, SEEK_SET );
+			fread( buffer, sizeof( unsigned char ), 32, puntero.root );
+			char folder_name[27];
+
+			memcpy(folder_name, buffer[1], 26);
+			folder_name[26] = "\0";
+
+
+			if (buffer[0] == (unsigned char)1 ){
+				printf("Path invalido");
+				return 0;
+			} else {
+				if (strcmp(folder, folder_name) == 0){
+					memcpy(tmp, buffer[28], 4);
+					folder = strtok(NULL, "/");
+					break;
+				}
+			}
+	}
+
+	return tmp;
+
+	}
+
+}
 
 
 /*
 Funcio ́n para montar el disco.
 Establece como variable global la ruta local donde se encuentra el archivo .bin correspondiente al disco. */
 void cr_mount(char* diskname){
-	
+	FILE* f = fopen(diskname, "rb");
+	puntero.root = f;
 }
 
 /* 
@@ -34,6 +75,7 @@ Funcion para ver si un archivo o carpeta existe en la ruta especificada por path
  Retorna 1 si el archivo o carpeta existe y 0 en caso contrario.
 */
 
+// TODO
 int cr_exists(char* path){
 	
 }
@@ -42,8 +84,39 @@ int cr_exists(char* path){
 Funcion para listar los elementos de un directorio del disco.Imprime en pantalla los nombres
 de todos los archivos y directorios contenidos en el directorio indicado por path.*/
 
+// TODO
 void cr_ls(char* path){
-	
+
+	char* folder = strtok(path, "/");
+
+	unsigned char *buffer = malloc( sizeof( unsigned char ) * 32 );
+
+
+	for( int i = 0; i < 64; i++ ) {
+		fseek( puntero.root, 32 * i, SEEK_SET );
+		fread( buffer, sizeof( unsigned char ), 32, puntero.root );
+
+
+		if ( buffer[0] == (unsigned char)1 ) {
+			printf( "Entrada invalida\n");
+
+		} else if (buffer[0] == (unsigned char)2 ) {
+
+
+
+			printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
+
+		} else if (buffer[0] == (unsigned char)4){
+			printf( "FILE %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
+
+		} else {
+			printf( "Entrada invalida\n");
+		}
+
+
+	free( buffer );
+	return 0;
+
 }
 
 /* 
