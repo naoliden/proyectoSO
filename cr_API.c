@@ -3,52 +3,48 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "cr_API.h"
+
+crFILE puntero; 
 
 
-
-// struct que almacena de información para operar en el archivo
-typedef struct crFILE{
-	//FIXME
-	FILE* cursor;
-	FILE* root;
-} crFILE;
-
-crFILE puntero;
-
-
-char* move(char* path ){
+int move(char* path ){
 
 	char* folder = strtok(path, "/");
 	unsigned char *buffer = malloc( sizeof( unsigned char ) * 32 );
-	unsigned int* tmp;
+	puntero.cursor = puntero.root;
 
 	while(folder){
 
 		for( int i = 0; i < 64; i++ ) {
-			fseek( puntero.root, 32 * i, SEEK_SET );
-			fread( buffer, sizeof( unsigned char ), 32, puntero.root );
+			fseek( puntero.cursor, 32 * i, SEEK_SET );
+			fread( buffer, sizeof( unsigned char ), 32, puntero.cursor );
 			char folder_name[27];
 
-			memcpy(folder_name, buffer[1], 26);
-			folder_name[26] = "\0";
+			memcpy(folder_name, &buffer[1], 26);
+			// folder_name[26] = "\0";
 
 
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido");
+				free(buffer);
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
-					memcpy(tmp, buffer[28], 4);
+					memcpy(puntero.cursor, &buffer[28], 4);
 					folder = strtok(NULL, "/");
 					break;
 				}
 			}
+			if (i == 63) {
+				free(buffer);
+				return 0;
+			}
+		}
 	}
 
-	return tmp;
-
-	}
-
+	free(buffer);
+	return 1;
 }
 
 
@@ -77,7 +73,7 @@ Funcion para ver si un archivo o carpeta existe en la ruta especificada por path
 
 // TODO
 int cr_exists(char* path){
-	
+	return move(path);
 }
 
 /* 
@@ -87,22 +83,22 @@ de todos los archivos y directorios contenidos en el directorio indicado por pat
 // TODO
 void cr_ls(char* path){
 
+
 	char* folder = strtok(path, "/");
 
 	unsigned char *buffer = malloc( sizeof( unsigned char ) * 32 );
+	move(path);
 
 
 	for( int i = 0; i < 64; i++ ) {
-		fseek( puntero.root, 32 * i, SEEK_SET );
-		fread( buffer, sizeof( unsigned char ), 32, puntero.root );
+		fseek( puntero.cursor, 32 * i, SEEK_SET );
+		fread( buffer, sizeof( unsigned char ), 32, puntero.cursor );
 
 
 		if ( buffer[0] == (unsigned char)1 ) {
 			printf( "Entrada invalida\n");
 
 		} else if (buffer[0] == (unsigned char)2 ) {
-
-
 
 			printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
 
@@ -112,11 +108,10 @@ void cr_ls(char* path){
 		} else {
 			printf( "Entrada invalida\n");
 		}
+	}
 
 
 	free( buffer );
-	return 0;
-
 }
 
 /* 

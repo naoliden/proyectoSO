@@ -1,4 +1,9 @@
 #include "cr_API.h"
-#include "cr_API.c"
+
+int main() {
+    cr_mount("./simdiskfilled.bin");
+    cr_ls("");
+    return 0;
+}
 
 
