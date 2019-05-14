@@ -4,31 +4,33 @@
 #include <string.h>
 #include <unistd.h>
 #include "cr_API.h"
+#include <math.h>
 
 crFILE puntero;
+unsigned int offset;
 
 
-int move(char* path ){
+int move_index(char* path ){
+	offset = 0;
 
-	char* folder = strtok(path, "/");
-	unsigned char *buffer = malloc( sizeof( unsigned char ) * 32 );
+	char * folder = strtok(path, "/");
+	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
 	puntero.cursor = puntero.root;
 
 	while(folder){
-
-		for( int i = 0; i < 64; i++ ) {
-			fseek( puntero.cursor, 32 * i, SEEK_SET );
-			fread( buffer, sizeof( unsigned char ), 32, puntero.cursor );
+		for(int i = 0; i < 64; i++ ) {
+			fseek(puntero.cursor, 32 * i, SEEK_SET );
+			offset = 32*i;
+			fread(buffer, sizeof( unsigned char ), 32, puntero.cursor );
 			char folder_name[27];
-
 			memcpy(folder_name, &buffer[1], 26);
-
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido");
 				free(buffer);
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
+					offset = offset + 28;
 					memcpy(puntero.cursor, &buffer[28], 4);
 					folder = strtok(NULL, "/");
 					break;
@@ -40,7 +42,6 @@ int move(char* path ){
 			}
 		}
 	}
-
 	free(buffer);
 	return 1;
 }
@@ -93,7 +94,7 @@ Funcion para ver si un archivo o carpeta existe en la ruta especificada por path
 
 // TODO
 int cr_exists(char* path){
-	return move(path);
+	return move_index(path);
 }
 
 /*
@@ -105,8 +106,7 @@ void cr_ls(char* path){
 	char* folder = strtok(path, "/");
 
 	unsigned char *buffer = malloc( sizeof( unsigned char ) * 32 );
-	move(path);
-
+	move_index(path);
 
 	for( int i = 0; i < 64; i++ ) {
 		fseek( puntero.cursor, 32 * i, SEEK_SET );
@@ -135,8 +135,8 @@ Funciones de manejo de archivos
 */
 
 int cr_mkdir(char *foldername){
-
 	// CHECK IF DIRECTORY ALREADY EXISTS
+
 	unsigned char * directory = malloc( sizeof( unsigned char ) * 32 );
 	directory[0] = (unsigned char)2;
 
@@ -151,7 +151,6 @@ int cr_mkdir(char *foldername){
 
 	directory[1]= (unsigned char)foldername;
 	printf("DIRECTORY IS %s\n", directory+1);
-
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 2048*4);
 	unsigned char mask = 1;
 	puntero.cursor = puntero.root;
@@ -180,26 +179,29 @@ int cr_mkdir(char *foldername){
 		fread(buffer, sizeof( unsigned char ), 32, puntero.cursor );
 
 		if (buffer[0] == (unsigned char)0 ) {
-			puntero.cursor = (unsigned char)directory;
+			puntero.cursor = (FILE*)directory;
 			free(directory);
 			break;
 		}
-		if(i == 63){
-
-		}
+		if(i == 63){printf("QUE PASA\n");}
 	}
 	free(buffer);
+	return 0;
 }
 
 /*
-Funcion para abrir un archivo. Si mode es‘r’,busca el archivo en la ruta path y retorna un crFILE* que lo representa.*/
+Funcion para abrir un archivo.
+Si mode es ‘r’,
+busca el archivo en la ruta path y retorna un crFILE* que lo representa.
+*/
 
 crFILE * cr_open(char * path, char mode){
-	if (move(path) != 0 && mode == 'r'){
-		return puntero.cursor;
+	if (move_index(path) != 0 && mode == 'r'){
+		return (crFILE*)puntero.cursor;
 	}
 	else{
 		printf("ERROR\n");
+		return NULL;
 	}
 }
 
@@ -210,32 +212,41 @@ Esto es importante si nbytes es mayor a la cantidad de Byte restantes en el arch
 desde la posicio ́n del archivo inmediatamente posterior a la u ́ltima posicio ́n le ́ıda por un llamado a read.*/
 
 int cr_read(crFILE* file_desc, void* buffer, int nbytes){
-	int num_blocks = 1 + nbytes/2048;
-	unsigned char * punteros = malloc( sizeof( unsigned char ) * 4*num_blocks);
-	fseek(file_desc, 8, SEEK_SET);
-	fread(punteros, 4*num_blocks,1, file_desc);
+	// FINDING FILE SIZE
+	unsigned char size[4];
+	fseek((FILE*) file_desc, 0, SEEK_SET);
+	fread(size, 1, 4, (FILE*) file_desc);
+	int file_size = (unsigned int)size[0]*256^3 + (unsigned int)size[1] * 256^2 +(unsigned int)size[2] * 256 + (unsigned int)size[3];
+	printf("%d\n", file_size );
 
+	// FINDING NUMBER OF HARDLINKS
+	unsigned char hardlinks[4];
+	fread(hardlinks, 1, 4, (FILE*) file_desc);
+	int num_hardlinks = (unsigned int)hardlinks[0]*256^3 + (unsigned int)hardlinks[1] * 256^2 +(unsigned int)hardlinks[2] * 256 + (unsigned int)hardlinks[3];
+	printf("%u \n", num_hardlinks);
 
-	int j = 0;
-	int bytes_read = 0;
-	unsigned int * p = malloc(sizeof(unsigned char) * 4);
-	for (int i = 0; i < 4*num_blocks; i++) {
-		p[j] = punteros[i];
-		j++;
-		if (j == 3) {
-			/* OPEN AND READ FILE */
-			puntero.cursor = p;
-			fseek(puntero.cursor, 0, SEEK_SET);
-			int size_f = ftell(puntero.cursor);
-			bytes_read = bytes_read + size_f;
-			fseek(puntero.cursor, 0, SEEK_SET);
-			unsigned char buffer[size_f];
-			fread(buffer, 1, size_f, puntero.cursor);
-			printf("%s\n", buffer);
-			j = 0;
-		}
+	// HOW MANY BYTES TO READ
+	if (nbytes > file_size) {
+		nbytes = file_size;
 	}
-	return bytes_read;
+	int num_blocks =  ceil(nbytes/2048.0);
+	unsigned char * punteros = malloc(2*num_blocks*sizeof(unsigned char));
+	unsigned char * buffer1 = malloc(2048*sizeof(unsigned char));
+
+	// NOT SO SURE ABOUT THIS PART. LOTS OF SEGMENTATION FAULTS.
+	// FIRST, WE SHOULD READ 4 BYTES TO GET DATA BLCK, THEN READ THE WHOLE DATA BLOCK.
+	for(int i = 0;i<num_blocks;i++){
+		fseek((FILE*) file_desc, 8 + i*4, SEEK_SET);
+		fread(punteros, 1, 4, (FILE*) file_desc); // READING PUNTERO
+		printf("%u\n", (unsigned int)punteros[0]*256^3 + (unsigned int)punteros[1] * 256^2 +(unsigned int)punteros[2] * 256 + (unsigned int)punteros[3]);
+		memcpy(puntero.cursor, &punteros[0], 4);
+		fread(buffer1, 1, 2048, puntero.cursor); // READING DATABLOCK
+		printf("%s\n", buffer1);
+	}
+	free(punteros);
+	free(buffer1);
+	return nbytes;
+
 }
 
 /*
@@ -245,7 +256,7 @@ porque no pudo seguir escribiendo, ya sea porque el disco se lleno ́ o porque e
 este nu ́mero puede ser menor a nbytes (incluso 0).*/
 
 int cr_write(crFILE* file_desc, void* buffer, int nbytes){
-
+	return 0;
 }
 
 /*
@@ -253,7 +264,7 @@ Funcio ́n para cerrar archivos. Cierra el archivo indicado por file desc. Debe 
 retorna, el archivo se encuentra actualizado en disco.*/
 
 int cr_close(crFILE* file_desc){
-
+	return 0;
 }
 
 /*
@@ -262,7 +273,7 @@ Los bloques que estaban siendo usados por el archivo deben quedar libres si, y s
 restante es igual a cero.*/
 
 int cr_rm(char* path){
-
+	return 0;
 }
 
 /*
@@ -270,7 +281,7 @@ Funcio ́n que se encarga de crear un hardlink del archivo referenciado por orig
 aumentando la cantidad de referencias al archivo original.*/
 
 int cr_hardlink(char* orig, char* dest){
-
+	return 0;
 }
 
 /*
@@ -278,7 +289,7 @@ Funcio ́nqueseencargadecopiarunarchivoouna ́rbol de directorios (es decir, un 
 del disco, referenciado por orig, hacia un nuevo archivo o directorio de ruta dest en su computador.*/
 
 int cr_unload(char* orig, char* dest){
-
+	return 0;
 }
 
 /*
@@ -287,5 +298,5 @@ un archivo sea demasiado pesado para el disco, se debe escribir todo lo posible 
 disponible.*/
 
 int cr_load(char* orig){
-
+	return 0;
 }
