@@ -13,7 +13,7 @@ unsigned int offset;
 
 int move_index(char* path, crFILE * p){
 	p->offset = 0;
-	FILE * f = fopen(puntero.disco, "r");
+	FILE * f = fopen(disk_path, "r");
 	char * folder = strtok(path, "/");
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
 
@@ -108,7 +108,7 @@ Funcion para listar los elementos de un directorio del disco.Imprime en pantalla
 de todos los archivos y directorios contenidos en el directorio indicado por path.*/
 
 void cr_ls(char* path){
-	FILE * f = fopen(puntero.disco, "rw");
+	FILE * f = fopen(disk_path, "rw");
 	char * folder = strtok(path, "/");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 	move_index(path, &puntero);
@@ -201,7 +201,7 @@ busca el archivo en la ruta path y retorna un crFILE* que lo representa.
 */
 
 crFILE * cr_open(char * path, char mode){
-	FILE * f = fopen(puntero.disco, &mode);
+	FILE * f = fopen(disk_path, &mode);
 	crFILE * open_file = malloc(sizeof(crFILE));
 	int existe = move_index(path, open_file);
 	if (existe != 0 && mode == 'r'){
@@ -228,7 +228,7 @@ Esto es importante si nbytes es mayor a la cantidad de Byte restantes en el arch
 desde la posicio ́n del archivo inmediatamente posterior a la u ́ltima posicio ́n le ́ıda por un llamado a read.*/
 
 int cr_read(crFILE * file_desc, void* buffer, int nbytes){
-	FILE * f = fopen(puntero.disco, "r");
+	FILE * f = fopen(disk_path, "r");
 
 	// FINDING INDEX block
 	unsigned char index_block[4];
