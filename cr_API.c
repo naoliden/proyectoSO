@@ -5,12 +5,13 @@
 #include <libgen.h>
 #include <unistd.h>
 #include <math.h>
-#include "cr_API.h"
 
-crFILE puntero;
+// Librerias propias en orden de prioridad
+#include "cr_API.h"
+#include "library.h"
+
 
 unsigned int offset;
-
 
 int move_index(char* path ){
 	offset = 0;
@@ -152,18 +153,13 @@ int cr_mkdir(char *foldername){
 			i++;
 		}
 	}
-
-	char *dirc, *basec, *path_to_dir, *new_dir;
-
-	dirc = strdup(foldername);
-	basec = strdup(foldername);
-
+	
 	// Path hast antes de la carpeta a crear
-	path_to_dir = dirname(dirc);
-
+	path_to_dir = dirfinder(foldername);
 	// Nombre de la carpeta para crear
-	new_dir = basename(basec);
-
+	new_dir = basefinder(foldername);
+	//move_index(path_to_dir);
+	//
 
 
 	directory[1]= (unsigned char)foldername;

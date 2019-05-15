@@ -7,12 +7,6 @@
 char disk_path[256];
 
 // struct que almacena de información para operar en el archivo
-typedef struct crFILE{
-	//FIXME
-	FILE* cursor;
-	FILE* root;
-	unsigned int* offset;
-} crFILE;
 
 
 /*
