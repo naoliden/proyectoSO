@@ -13,39 +13,51 @@
 
 unsigned int offset;
 
-int move_index(char* path ){
-	offset = 0;
+int move_index(char* path, crFILE * p){
+	/*
+	if(strcmp(path[0],".") == 0){
+		memcpy(path, path[1], sizeof(path));
+	}
+	*/
+	p->offset = 0;
+	FILE * f = fopen(disk_path, "rb");
+	char * folder = malloc(256*sizeof(char));
+	folder = strtok(path, "/");
 
-	char * folder = strtok(path, "/");
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
-	puntero.cursor = puntero.root;
 
 	while(folder){
+		printf("FOLDER: %s\n", folder);
 		for(int i = 0; i < 64; i++ ) {
-			fseek(puntero.cursor, 32 * i, SEEK_SET );
-			offset = 32*i;
-			fread(buffer, sizeof( unsigned char ), 32, puntero.cursor );
+			fseek(f, 32 * i, SEEK_SET );
+			p->offset = 32*i;
+			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido");
+				free(folder);
 				free(buffer);
+				fclose(f);
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
-					offset = offset + 28;
-					memcpy(puntero.cursor, &buffer[28], 4);
+					p->offset = p->offset + 28;
 					folder = strtok(NULL, "/");
 					break;
 				}
 			}
 			if (i == 63) {
+				free(folder);
 				free(buffer);
+				fclose(f);
 				return 0;
 			}
 		}
 	}
+	free(folder);
 	free(buffer);
+	fclose(f);
 	return 1;
 }
 
@@ -100,7 +112,7 @@ Funcion para ver si un archivo o carpeta existe en la ruta especificada por path
 */
 
 int cr_exists(char* path){
-	return move_index(path);
+	return move_index(path, &puntero);
 }
 
 /*
@@ -108,15 +120,23 @@ Funcion para listar los elementos de un directorio del disco.Imprime en pantalla
 de todos los archivos y directorios contenidos en el directorio indicado por path.*/
 
 void cr_ls(char* path){
-	char* folder = strtok(path, "/");
+	FILE * f = fopen(disk_path, "rw");
+	char * folder = strtok(path, "/");
+	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
+	move_index(path, &puntero);
+	printf("OFFSET: %d\n", puntero.offset);
+	unsigned char index_block[4];
+	int index_block_num = 0;
+	if(puntero.offset > 0){
+		fseek(f, puntero.offset, SEEK_SET);
+		fread(index_block, 1, 4, f);
+		index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
+	}
 
-	unsigned char *buffer = malloc( sizeof( unsigned char ) * 32 );
-	move_index(path);
 
 	for( int i = 0; i < 64; i++ ) {
-		fseek( puntero.cursor, 32 * i, SEEK_SET );
-		fread( buffer, sizeof( unsigned char ), 32, puntero.cursor );
-
+		fseek(f, 2048*index_block_num + 32 * i, SEEK_SET);
+		fread(buffer, sizeof( unsigned char ), 32, f);
 		if ( buffer[0] == (unsigned char)1 ) {
 			printf( "Entrada invalida\n");
 
@@ -131,7 +151,8 @@ void cr_ls(char* path){
 			printf( "Entrada invalida\n");
 		}
 	}
-	free( buffer );
+	free(buffer);
+	fclose(f);
 }
 
 /*
@@ -140,7 +161,12 @@ Funciones de manejo de archivos
 */
 
 int cr_mkdir(char *foldername){
-	// CHECK IF DIRECTORY ALREADY EXISTS
+	/*
+	1. Verify that directory does not exist
+	2. Find unused block in bitmap
+	3. Set block in bitmap to 1
+	4. Save a 32 bit string with indicator, name and location of puntero in the directory where new directory should be saved
+	*/
 
 	unsigned char* directory = malloc( sizeof( unsigned char ) * 32 );
 	directory[0] = (unsigned char)2;
@@ -209,8 +235,19 @@ busca el archivo en la ruta path y retorna un crFILE* que lo representa.
 */
 
 crFILE * cr_open(char * path, char mode){
-	if (move_index(path) != 0 && mode == 'r'){
-		return (crFILE*)puntero.cursor;
+	crFILE * open_file = malloc(sizeof(crFILE));
+	int existe = move_index(path, open_file);
+	printf("HOLA\n");
+	if (existe != 0 && mode == 'r'){
+		return open_file;
+	}
+	else if (existe == 0 && mode == 'w'){
+		crFILE * nuevo_archivo = malloc(sizeof(crFILE));
+		/*
+		Crear nuevo archivo
+		Cambiar bit del bloque en bitmap
+		*/
+		return nuevo_archivo;
 	}
 	else{
 		printf("ERROR\n");
@@ -224,42 +261,58 @@ la direccio ́n apuntada por buffer. Debe retornar la cantidad de Byte efectivam
 Esto es importante si nbytes es mayor a la cantidad de Byte restantes en el archivo. La lectura de read se efectua
 desde la posicio ́n del archivo inmediatamente posterior a la u ́ltima posicio ́n le ́ıda por un llamado a read.*/
 
-int cr_read(crFILE* file_desc, void* buffer, int nbytes){
+int cr_read(crFILE * file_desc, void* buffer, int nbytes){
+	FILE * f = fopen(disk_path, "r");
+
+	// FINDING INDEX block
+	unsigned char index_block[4];
+	fseek(f, file_desc->offset, SEEK_SET);
+	fread(index_block, 1, 4, f);
+	int index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
+	printf("INDEX BLOCK: %d\n", index_block_num);
+
 	// FINDING FILE SIZE
 	unsigned char size[4];
-	fseek((FILE*) file_desc, 0, SEEK_SET);
-	fread(size, 1, 4, (FILE*) file_desc);
+	fseek(f, 2048*index_block_num, SEEK_SET);
+	fread(size, 1, 4, f);
 	int file_size = (unsigned int)size[0]*256^3 + (unsigned int)size[1] * 256^2 +(unsigned int)size[2] * 256 + (unsigned int)size[3];
-	printf("%d\n", file_size );
+	printf("FILE SIZE: %u\n", file_size);
 
 	// FINDING NUMBER OF HARDLINKS
 	unsigned char hardlinks[4];
-	fread(hardlinks, 1, 4, (FILE*) file_desc);
-	int num_hardlinks = (unsigned int)hardlinks[0]*256^3 + (unsigned int)hardlinks[1] * 256^2 +(unsigned int)hardlinks[2] * 256 + (unsigned int)hardlinks[3];
-	printf("%u \n", num_hardlinks);
+	//fseek(f, 2048*index_block_num + 4, SEEK_SET);
+	fread(hardlinks, 1, 4, f);
+	unsigned int num_hardlinks = (unsigned int)hardlinks[0]*256^3 + (unsigned int)hardlinks[1] * 256^2 +(unsigned int)hardlinks[2] * 256 + (unsigned int)hardlinks[3];
+	printf("HARDLINKS: %u \n", num_hardlinks);
 
 	// HOW MANY BYTES TO READ
 	if (nbytes > file_size) {
 		nbytes = file_size;
 	}
 	int num_blocks =  ceil(nbytes/2048.0);
-	unsigned char * punteros = malloc(2*num_blocks*sizeof(unsigned char));
+	unsigned char * punteros = malloc(4*num_blocks*sizeof(unsigned char));
 	unsigned char * buffer1 = malloc(2048*sizeof(unsigned char));
-
+	int to_read = 2048;
 	// NOT SO SURE ABOUT THIS PART. LOTS OF SEGMENTATION FAULTS.
 	// FIRST, WE SHOULD READ 4 BYTES TO GET DATA BLCK, THEN READ THE WHOLE DATA BLOCK.
 	for(int i = 0;i<num_blocks;i++){
-		fseek((FILE*) file_desc, 8 + i*4, SEEK_SET);
-		fread(punteros, 1, 4, (FILE*) file_desc); // READING PUNTERO
-		printf("%u\n", (unsigned int)punteros[0]*256^3 + (unsigned int)punteros[1] * 256^2 +(unsigned int)punteros[2] * 256 + (unsigned int)punteros[3]);
-		memcpy(puntero.cursor, &punteros[0], 4);
-		fread(buffer1, 1, 2048, puntero.cursor); // READING DATABLOCK
-		printf("%s\n", buffer1);
+		if (i == num_blocks - 1){
+			to_read = nbytes - 2048*i;
+		}
+		printf("TO READ: %d\n", to_read );
+		fseek(f, file_desc->offset + 8 + i*4, SEEK_SET);
+		fread(punteros, 1, 4, f); // READING PUNTERO
+		unsigned int offset = (unsigned int)punteros[0]*256^3 + (unsigned int)punteros[1] * 256^2 +(unsigned int)punteros[2] * 256 + (unsigned int)punteros[3];
+		printf("INDEX: %u\n", offset);
+		//memcpy(f, &punteros[0], 4);
+		fseek(f, 2048*offset, SEEK_SET);
+		fread(buffer1, 1, to_read, f); // READING DATABLOCK
+		printf("LEST DATA: %s\n", buffer1);
 	}
 	free(punteros);
 	free(buffer1);
+	fclose(f);
 	return nbytes;
-
 }
 
 /*
