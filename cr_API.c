@@ -2,11 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <math.h>
-#include "cr_API.h"
 
-crFILE puntero;
+// Librerias propias en orden de prioridad
+#include "cr_API.h"
+#include "library.h"
+
 
 unsigned int offset;
 
@@ -20,6 +23,7 @@ int move_index(char* path, crFILE * p){
 	FILE * f = fopen(disk_path, "rb");
 	char * folder = malloc(256*sizeof(char));
 	folder = strtok(path, "/");
+
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
 
 	while(folder){
@@ -175,6 +179,14 @@ int cr_mkdir(char *foldername){
 			i++;
 		}
 	}
+	
+	// Path hast antes de la carpeta a crear
+	path_to_dir = dirfinder(foldername);
+	// Nombre de la carpeta para crear
+	new_dir = basefinder(foldername);
+	//move_index(path_to_dir);
+	//
+
 
 	directory[1]= (unsigned char)foldername;
 	printf("DIRECTORY IS %s\n", directory+1);

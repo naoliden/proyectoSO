@@ -6,15 +6,6 @@
 
 char disk_path[256];
 
-// struct que almacena de información para operar en el archivo
-typedef struct crFILE{
-	//FIXME
-	FILE* cursor;
-	FILE* root;
-	unsigned int offset;
-} crFILE;
-
-
 /*
 Funcion para montar el disco.
 Establece como variable global la ruta local donde se encuentra el archivo .bin correspondiente al disco. */

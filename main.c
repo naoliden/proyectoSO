@@ -1,5 +1,7 @@
 #include "cr_API.h"
 
+#include "library.h"
+
 int main() {
     cr_mount("./simdiskfilled.bin");
     //cr_mkdir("HALLO.txt");
