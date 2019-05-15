@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "cr_API.h"
 #include <math.h>
+#include "cr_API.h"
 
 crFILE puntero;
+
 unsigned int offset;
 
 
@@ -51,8 +52,12 @@ int move_index(char* path ){
 Funcio ́n para montar el disco.
 Establece como variable global la ruta local donde se encuentra el archivo .bin correspondiente al disco. */
 void cr_mount(char* diskname){
-	FILE* f = fopen(diskname, "rb");
-	puntero.root = f;
+
+	memset(disk_path, '\0', sizeof(disk_path));
+	strcpy(disk_path, diskname);
+
+	// FILE* f = fopen(diskname, "rb");
+	// puntero.root = f;
 }
 
 /*
@@ -92,7 +97,6 @@ Funcion para ver si un archivo o carpeta existe en la ruta especificada por path
  Retorna 1 si el archivo o carpeta existe y 0 en caso contrario.
 */
 
-// TODO
 int cr_exists(char* path){
 	return move_index(path);
 }
@@ -101,7 +105,6 @@ int cr_exists(char* path){
 Funcion para listar los elementos de un directorio del disco.Imprime en pantalla los nombres
 de todos los archivos y directorios contenidos en el directorio indicado por path.*/
 
-// TODO
 void cr_ls(char* path){
 	char* folder = strtok(path, "/");
 
@@ -137,11 +140,11 @@ Funciones de manejo de archivos
 int cr_mkdir(char *foldername){
 	// CHECK IF DIRECTORY ALREADY EXISTS
 
-	unsigned char * directory = malloc( sizeof( unsigned char ) * 32 );
+	unsigned char* directory = malloc( sizeof( unsigned char ) * 32 );
 	directory[0] = (unsigned char)2;
 
 	int i = 0;
-	unsigned int * foldername_bin = malloc(sizeof(unsigned int) * 27);
+	unsigned int* foldername_bin = malloc(sizeof(unsigned int) * 27);
 	while (foldername[i] != '\0'){
 		for (int j = 7; j >= 0; --j){
 			foldername_bin[i] = ( (foldername[i] & (1 << j)) ? '1' : '0' );
@@ -250,7 +253,7 @@ int cr_read(crFILE* file_desc, void* buffer, int nbytes){
 }
 
 /*
-Funcio ́n para escribir ar- chivos. Escribe en el archivo descrito por file desc los nbytes que se encuentren
+Funcio ́n para escribir archivos. Escribe en el archivo descrito por file_desc los nbytes que se encuentren
 en la direccio ́n indicada por buffer. Retorna la cantidad de Byte escritos en el archivo. Si se produjo un error
 porque no pudo seguir escribiendo, ya sea porque el disco se lleno ́ o porque el archivo no puede crecer mas,
 este nu ́mero puede ser menor a nbytes (incluso 0).*/

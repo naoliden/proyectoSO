@@ -4,6 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 
+char disk_path[256];
+
 // struct que almacena de información para operar en el archivo
 typedef struct crFILE{
 	//FIXME
@@ -14,7 +16,7 @@ typedef struct crFILE{
 
 
 /*
-Funcio ́n para montar el disco.
+Funcion para montar el disco.
 Establece como variable global la ruta local donde se encuentra el archivo .bin correspondiente al disco. */
 void cr_mount(char* diskname);
 
