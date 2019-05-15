@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <math.h>
 #include "cr_API.h"
@@ -151,6 +152,19 @@ int cr_mkdir(char *foldername){
 			i++;
 		}
 	}
+
+	char *dirc, *basec, *path_to_dir, *new_dir;
+
+	dirc = strdup(foldername);
+	basec = strdup(foldername);
+
+	// Path hast antes de la carpeta a crear
+	path_to_dir = dirname(dirc);
+
+	// Nombre de la carpeta para crear
+	new_dir = basename(basec);
+
+
 
 	directory[1]= (unsigned char)foldername;
 	printf("DIRECTORY IS %s\n", directory+1);

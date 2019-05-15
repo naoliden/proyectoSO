@@ -1,5 +1,5 @@
 #include "cr_API.h"
-
+#include "library.h"
 
 int main() {
     cr_mount("./simdiskfilled.bin");
