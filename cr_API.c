@@ -10,23 +10,29 @@ crFILE puntero;
 
 unsigned int offset;
 
-
 int move_index(char* path, crFILE * p){
+	/*
+	if(strcmp(path[0],".") == 0){
+		memcpy(path, path[1], sizeof(path));
+	}
+	*/
 	p->offset = 0;
-	FILE * f = fopen(disk_path, "r");
-	char * folder = strtok(path, "/");
+	FILE * f = fopen(disk_path, "rb");
+	char * folder = malloc(256*sizeof(char));
+	folder = strtok(path, "/");
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
 
 	while(folder){
+		printf("FOLDER: %s\n", folder);
 		for(int i = 0; i < 64; i++ ) {
 			fseek(f, 32 * i, SEEK_SET );
 			p->offset = 32*i;
-			printf("OFFSET: %d\n", p->offset);
 			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido");
+				free(folder);
 				free(buffer);
 				fclose(f);
 				return 0;
@@ -38,12 +44,14 @@ int move_index(char* path, crFILE * p){
 				}
 			}
 			if (i == 63) {
+				free(folder);
 				free(buffer);
 				fclose(f);
 				return 0;
 			}
 		}
 	}
+	free(folder);
 	free(buffer);
 	fclose(f);
 	return 1;
@@ -112,9 +120,18 @@ void cr_ls(char* path){
 	char * folder = strtok(path, "/");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 	move_index(path, &puntero);
-	fseek(f, puntero.offset, SEEK_SET);
+	printf("OFFSET: %d\n", puntero.offset);
+	unsigned char index_block[4];
+	int index_block_num = 0;
+	if(puntero.offset > 0){
+		fseek(f, puntero.offset, SEEK_SET);
+		fread(index_block, 1, 4, f);
+		index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
+	}
+
+
 	for( int i = 0; i < 64; i++ ) {
-		fseek(f, 32 * i, SEEK_SET);
+		fseek(f, 2048*index_block_num + 32 * i, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, f);
 		if ( buffer[0] == (unsigned char)1 ) {
 			printf( "Entrada invalida\n");
@@ -140,7 +157,12 @@ Funciones de manejo de archivos
 */
 
 int cr_mkdir(char *foldername){
-	// CHECK IF DIRECTORY ALREADY EXISTS
+	/*
+	1. Verify that directory does not exist
+	2. Find unused block in bitmap
+	3. Set block in bitmap to 1
+	4. Save a 32 bit string with indicator, name and location of puntero in the directory where new directory should be saved
+	*/
 
 	unsigned char* directory = malloc( sizeof( unsigned char ) * 32 );
 	directory[0] = (unsigned char)2;
@@ -201,22 +223,22 @@ busca el archivo en la ruta path y retorna un crFILE* que lo representa.
 */
 
 crFILE * cr_open(char * path, char mode){
-	FILE * f = fopen(disk_path, &mode);
 	crFILE * open_file = malloc(sizeof(crFILE));
 	int existe = move_index(path, open_file);
+	printf("HOLA\n");
 	if (existe != 0 && mode == 'r'){
-		fclose(f);
 		return open_file;
 	}
 	else if (existe == 0 && mode == 'w'){
+		crFILE * nuevo_archivo = malloc(sizeof(crFILE));
 		/*
-		retonrar nuevo crFILE*
+		Crear nuevo archivo
+		Cambiar bit del bloque en bitmap
 		*/
-		return NULL;
+		return nuevo_archivo;
 	}
 	else{
 		printf("ERROR\n");
-		fclose(f);
 		return NULL;
 	}
 }
@@ -246,7 +268,7 @@ int cr_read(crFILE * file_desc, void* buffer, int nbytes){
 
 	// FINDING NUMBER OF HARDLINKS
 	unsigned char hardlinks[4];
-	fseek(f, 2048*index_block_num + 4, SEEK_SET);
+	//fseek(f, 2048*index_block_num + 4, SEEK_SET);
 	fread(hardlinks, 1, 4, f);
 	unsigned int num_hardlinks = (unsigned int)hardlinks[0]*256^3 + (unsigned int)hardlinks[1] * 256^2 +(unsigned int)hardlinks[2] * 256 + (unsigned int)hardlinks[3];
 	printf("HARDLINKS: %u \n", num_hardlinks);

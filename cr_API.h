@@ -11,7 +11,7 @@ typedef struct crFILE{
 	//FIXME
 	FILE* cursor;
 	FILE* root;
-	unsigned int* offset;
+	unsigned int offset;
 } crFILE;
 
 
