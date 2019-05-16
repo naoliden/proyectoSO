@@ -160,8 +160,6 @@ Funciones de manejo de archivos
 int cr_mkdir(char *foldername){
 
 	//fixme verificar que no exista el directorio antes de hacer todo        
-	
-
 	// Path hasta antes de la carpeta a crear
 	char* path_to_dir = dirfinder(foldername);
 	// Nombre de la carpeta para crear
@@ -170,12 +168,12 @@ int cr_mkdir(char *foldername){
 	blockIndex* new_block = find_empty_block();
 	move_index(path_to_dir, &puntero);
 
-	FILE * f = fopen(disk_path, "rw");
+	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 	
 	int existe = cr_exists(foldername);
 	if (existe == 0){
-		printf("El directorio %s ya existe", new_dir);
+		printf("El directorio %s ya existe en %s", new_dir, path_to_dir);
 		free(buffer);
 		fclose(f);
 		return 0;
@@ -185,13 +183,17 @@ int cr_mkdir(char *foldername){
 		fseek(f, 32 * j, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, f);
 		if ( buffer[0] == (unsigned char)1 || buffer[0] == (unsigned char)4) {
-			printf( "\nCreando directorio\n");
-
-			//todo escribir que hay directorio en directorio padre
-
-			change_bitmap(new_block);
+			printf( "\nCreando directorio %s en %s\n", new_dir, path_to_dir);
 			free(buffer);
 			fclose(f);
+
+			//todo escribir que hay directorio en directorio padre
+			FILE * file = fopen(disk_path, "ab");
+			buffer[0] = '2';
+			memcpy(buffer[1], &new_dir, strlen(new_dir)+1);
+				
+
+			change_bitmap(new_block);
 			return 1;
 		}
 	}
