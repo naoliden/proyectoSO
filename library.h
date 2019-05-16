@@ -1,20 +1,17 @@
-
-typedef struct crFILE{
-	//FIXME
-	FILE* cursor;
-	FILE* root;
-	unsigned int* offset;
-
-	int block;
-	int size; 
-	unsigned char name[12];
-	unsigned char data[1021 * 2048];
-
-} crFILE;
+typedef struct blockIndex {
+	int block_number;
+	int byte_number;
+	int bit_number;
+	unsigned char new_byte[8];
+} blockIndex;
 
 char* dirfinder(char* path);
 
 char* basefinder(char* path);
+
+blockIndex* find_empty_block();
+
+void change_bitmap(blockIndex* block);
 
 
 
