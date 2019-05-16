@@ -4,18 +4,18 @@
 #include "cr_API.h"
 #include "library.h"
 
-typedef struct crFILE{
-	//FIXME
-	FILE* cursor;
-	FILE* root;
-	unsigned int* offset;
+// typedef struct crFILE{
+// 	//FIXME
+// 	FILE* cursor;
+// 	FILE* root;
+// 	unsigned int* offset;
 
-	int block;
-	int size; 
-	unsigned char name[12];
-	unsigned char data[1021 * 2048];
+// 	int block;
+// 	int size; 
+// 	unsigned char name[12];
+// 	unsigned char data[1021 * 2048];
 
-} crFILE;
+// } crFILE;
 
 char* dirfinder(char* path) {
 	char *dirc, *dname;
