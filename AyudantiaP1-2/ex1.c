@@ -14,7 +14,7 @@ int main(){
   fclose(f); // Cerramos el archivo.
 
   /* Haremos lo mismo, pero para escribir un nuevo archivo. */
-  FILE* f_new = fopen("ex1_same.txt", "wb"); // Escritura binaria.
+  FILE * f_new = fopen("ex1_same.txt", "wb"); // Escritura binaria.
   fwrite(buffer, 1, size_f, f_new);  // Escribimos la misma cantidad de bytes
                                      // desde el buffer.
   fclose(f_new); // Cerramos el archivo.
