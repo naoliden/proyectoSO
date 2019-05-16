@@ -13,15 +13,15 @@
 unsigned int offset;
 crFILE puntero;
 
-// review REVISAR 
-//  
+// review REVISAR
+//
 
 int move_index(char* path, crFILE* p){
-	
+
 
 	FILE * f = fopen(disk_path, "rb");
 
-	p->offset = 0;
+	p->offset = -1;
 
 	char * folder = malloc(256*sizeof(char));
 	folder = strtok(path, "/");
@@ -88,7 +88,7 @@ void cr_bitmap(){
 		unsigned char bits[8];
 		for(int j = 0;j<8;j++){
 			bits[j] = (buffer[k] & (mask << j)) != 0;
-			// printf("%d", bits[j]);
+			printf("%d", bits[j]);
 			if (bits[j] == 1) {
 				uno++;
 			}
@@ -123,13 +123,13 @@ void cr_ls(char* path){
 	move_index(path, &puntero);
 	printf("OFFSET: %d\n", puntero.offset);
 	unsigned char index_block[4];
+
 	int index_block_num = 0;
-	if(puntero.offset > 0){
+	if(puntero.offset != NULL){
 		fseek(f, puntero.offset, SEEK_SET);
 		fread(index_block, 1, 4, f);
 		index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
 	}
-
 
 	for( int i = 0; i < 64; i++ ) {
 		fseek(f, 2048*index_block_num + 32 * i, SEEK_SET);
@@ -158,6 +158,7 @@ Funciones de manejo de archivos
 */
 
 int cr_mkdir(char *foldername){
+
 	// Path hasta antes de la carpeta a crear
 	char* path_to_dir = dirfinder(foldername);
 	// Nombre de la carpeta para crear
@@ -168,7 +169,7 @@ int cr_mkdir(char *foldername){
 
 	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
-	
+
 	int existe = cr_exists(foldername);
 	if (existe == 0){
 		printf("El directorio %s ya existe en %s", new_dir, path_to_dir);
@@ -194,7 +195,7 @@ int cr_mkdir(char *foldername){
 			fseek(file, offset, SEEK_SET);
 
 			buffer[0] = '2';
-
+      
 			memcpy(&buffer[1], new_dir, 27);
 			memcpy(&buffer[27], pointer, 4);
 
@@ -218,6 +219,7 @@ Si mode es ‘r’, busca el archivo en la ruta path y retorna un crFILE* que lo
 crFILE * cr_open(char * path, char mode){
 	crFILE * open_file = malloc(sizeof(crFILE));
 	int existe = move_index(path, open_file);
+
 	if (existe != 0 && mode == 'r'){
 		return open_file;
 	}
@@ -228,22 +230,23 @@ crFILE * cr_open(char * path, char mode){
 		int num = 1200;
 
 		unsigned char * archivo_indice = malloc(32*sizeof(unsigned char));
-		unsigned char nombre[27] = "New Germy.txt";
+
+		unsigned char nombre[28] = "New Germy.txt";
 		unsigned char numero[] = "4";
-		unsigned char new_block[4];
-		new_block[0] = (unsigned char) 0;
-		new_block[1] = (unsigned char) 0;
-		new_block[2] = (unsigned char) ((num)>>8) & 0xFF;
-		new_block[3] = (unsigned char) (num) & 0xFF;
-		memcpy(archivo_indice, numero, 1);
-		memcpy(archivo_indice + 1, nombre, 27);
-		memcpy(archivo_indice + 27, new_block, 4);
+		unsigned char new_block[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((num)>>8) & 0xFF, (unsigned char) (num) & 0xFF};
+
+		memcpy(&archivo_indice[0], numero, 1);
+		memcpy(&archivo_indice[1], nombre, 27);
+		memcpy(&archivo_indice[27], new_block, 4);
+
 		for (size_t i = 0; i < 32; i++) {
 			printf("archivo_indice[%zu]=%c\n",i, archivo_indice[i]);
 		}
 
 		printf("NUEVO NOMBRE: %s\n", archivo_indice);
+
 		//Crear nuevo archivo
+
 		//Cambiar bit del bloque en bitmap
 
 		return open_file;
@@ -268,45 +271,41 @@ int cr_read(crFILE * file_desc, void* buffer, int nbytes){
 	fseek(f, file_desc->offset, SEEK_SET);
 	fread(index_block, 1, 4, f);
 	int index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
-	printf("INDEX BLOCK: %d\n", index_block_num);
 
 	// FINDING FILE SIZE
 	unsigned char * size = malloc(4*sizeof(unsigned char));
 	fseek(f, 2048*index_block_num, SEEK_SET);
 	fread(size, 1, 4, f);
-	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3] ;
-	printf("FILE SIZE: %d\n", file_size);
+	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
 
 	// FINDING NUMBER OF HARDLINKS
 	unsigned char hardlinks[4];
 	fseek(f, 2048*index_block_num + 4, SEEK_SET);
 	fread(hardlinks, 1, 4, f);
 	int num_hardlinks = (int)hardlinks[0]*16777216 + (int)hardlinks[1] * 65536 + (int)hardlinks[2] * 256 + (int)hardlinks[3];
-	printf("HARDLINKS: %u \n", num_hardlinks);
 
 	// HOW MANY BYTES TO READ
 	if (nbytes > file_size) {
 		nbytes = file_size;
 	}
+
 	int num_blocks =  ceil(nbytes/2048.0);
 	unsigned char * punteros = malloc(4*num_blocks*sizeof(unsigned char));
 	unsigned char * buffer1 = malloc(2048*sizeof(unsigned char));
 	int to_read = 2048;
-	// NOT SO SURE ABOUT THIS PART. LOTS OF SEGMENTATION FAULTS.
-	// FIRST, WE SHOULD READ 4 BYTES TO GET DATA BLCK, THEN READ THE WHOLE DATA BLOCK.
+
 	for(int i = 0;i<num_blocks;i++){
 		if (i == num_blocks - 1){
 			to_read = nbytes - 2048*i;
 		}
-		printf("TO READ: %d\n", to_read );
 		fseek(f, index_block_num*2048 + 8 + i*4, SEEK_SET);
-		fread(punteros, 1, 4, f); // READING PUNTERO
+		fread(punteros, 1, 4, f);
 		int offset = (int)punteros[2] * 256 + (int)punteros[3];
-		printf("INDEX: %d\n", offset);
+
 		fseek(f, 2048*offset, SEEK_SET);
-		fread(buffer1, 1, to_read, f); // READING DATABLOCK
-		printf("LEST DATA: %s\n", buffer1);
+		fread(buffer1, 1, to_read, f);
 	}
+
 	free(punteros);
 	free(buffer1);
 	fclose(f);
@@ -320,9 +319,10 @@ porque no pudo seguir escribiendo, ya sea porque el disco se lleno ́ o porque e
 este nu ́mero puede ser menor a nbytes (incluso 0).*/
 
 int cr_write(crFILE* file_desc, void* buffer, int nbytes){
-	FILE * f = fopen(disk_path, "r");
 
-	// FINDING INDEX block
+	FILE * f = fopen(disk_path, "r+b");
+
+	// FINDING INDEX BLOCK
 	unsigned char index_block[4];
 	fseek(f, file_desc->offset, SEEK_SET);
 	fread(index_block, 1, 4, f);
@@ -337,56 +337,58 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 	printf("FILE SIZE: %d\n", file_size);
 
 	// HOW MANY BYTES TO WRITE IN TOTAL
-	if (nbytes > (500*2048 - file_size)) {
-		nbytes = (500*2048 - file_size);
+	if (nbytes > 500*2048) {
+		nbytes = 500*2048;
 	}
 
 	// WHERE TO START AND HOW MANY BLOCKS TO WRITE TO
-	int block = ceil(file_size/2048.0);
-	int index = file_size - 2048*(block-1);
+	int blocks_used = ceil(file_size/2048.0);
 	int num_blocks = ceil(nbytes/2048.0);
-	printf("START WRITING BLOCK: %d\nSTART WRITING INDEX: %d\nNUM BLOCKS: %d\n", block, index, num_blocks);
 
-	unsigned char * punteros = malloc(4*num_blocks*sizeof(unsigned char));
-	int to_read = 2048;
-	for(int i = (block-1);i<num_blocks;i++){
-		if (i == num_blocks	 - 1){ to_read = nbytes - 2048*i;}
 
-		if(i == (block-1)){
-			// FINDING DATA BLOCK TO WRITE TO
-			fseek(f, index_block_num*2048 + 8 + 4*i, SEEK_SET);
-			fread(punteros, 1, 4, f); // READING PUNTERO
-			fclose(f);
-			int offset = (int)punteros[2] * 256 + (int)punteros[3];
-			// GO TO BLOCK AND RIGHT INDEX
-
-			FILE * wfile = fopen(disk_path, "r+b");
-			fseek(wfile, offset*2048 + index, SEEK_SET);
-			int wr = fwrite("HOLA GERMY!", (size_t) 1, (size_t) nbytes, wfile);
-			printf("WROTE %d\n", wr);
-			// CHANGE FILE SIZE OF ARCHIVE
-			fseek(wfile, index_block_num*2048 + 2, SEEK_SET);
-			char new_size[2] = {((file_size+nbytes)>>8) & 0xFF, (file_size+nbytes) & 0xFF};
-			fwrite(new_size, 1, 2, wfile);
-			fclose(wfile);
-
-		}
-		else{
-			// FIND AVAILABLE BLOCK TO WRITE TO
-			// SET BITMAP TO ONE.
-			// PUT POINTER TO BLOCK IN index
-			// GO TO BLOCK
-			// WRITE DATA TO BLOCK
+	// agregar x bloques de datos al bloque indice
+	int i;
+	if(num_blocks>blocks_used){
+		for (i = 0; i<(num_blocks-blocks_used);i++){
+			blockIndex * block_index = find_empty_block();
+			fseek(f, 2048*index_block_num + 8 + (i+num_blocks)*4, SEEK_SET);
+			char new_block[4] = {(block_index->block_number>>24) & 0xFF,(block_index->block_number>>16) & 0xFF,(block_index->block_number>>8) & 0xFF, (block_index->block_number) & 0xFF};
+			fwrite(new_block, 1, 4, f);
 		}
 	}
 
+	//Para cada bloque - escribe datos desde el buffer
 
+	unsigned char * punteros = malloc(4*sizeof(unsigned char));
+	int to_write = 2048;
+	for (i = 0; i < num_blocks; i++) {
+		// Encontrar bloque:
+		fseek(f, 2048*index_block_num + 8 + i*4, SEEK_SET);
+		fwrite(punteros, 1, 4, f); // READING PUNTERO
+		int offset = (int)punteros[2] * 256 + (int)punteros[3];
+		printf("INDEX: %d\n", offset);
 
+		if(i +1 == num_blocks){to_write = nbytes - i*2048;}
+
+		// Escribir datos al bloque
+		fseek(f, 2048*offset, SEEK_SET);
+		fwrite(&buffer[i*2048], 1,to_write, f);
+	}
+
+	// Actualiza tamaño del archivo
+
+	fseek(f, index_block_num*2048 + 2, SEEK_SET);
+	char new_size[2] = {(nbytes>>8) & 0xFF, (nbytes) & 0xFF};
+	fwrite(new_size, 1, 2, f);
+	fclose(f);
+
+	free(size);
+	free(punteros);
 	return nbytes;
 }
 
 /*
-Funcio ́n para cerrar archivos. Cierra el archivo indicado por file desc. Debe garantizar que cuando esta funcion
+Función para cerrar archivos. Cierra el archivo indicado por file desc. Debe garantizar que cuando esta funcion
 retorna, el archivo se encuentra actualizado en disco.*/
 
 int cr_close(crFILE* file_desc){

@@ -10,7 +10,7 @@
 // 	FILE* root;
 // 	unsigned int* offset;
 // 	int block;
-// 	int size; 
+// 	int size;
 // 	unsigned char name[12];
 // 	unsigned char data[1021 * 2048];
 
@@ -27,7 +27,7 @@
 char* dirfinder(char* path) {
 	char *dirc, *dname;
 	dirc = strdup(path);
-	dname = dirname(dirc);	
+	dname = dirname(dirc);
 	return dname;
 }
 
@@ -35,7 +35,7 @@ char* dirfinder(char* path) {
 char* basefinder(char* path) {
 	char *basec, *bname;
 	basec = strdup(path);
-	bname = basename(basec);	
+	bname = basename(basec);
 	return bname;
 }
 
@@ -57,7 +57,7 @@ blockIndex* find_empty_block(){
 		for(int j = 0; j<8; j++){
 
 			block_num++;
-			byte[j] = (buffer[k] & (mask << j)) != 0;	
+			byte[j] = (buffer[k] & (mask << j)) != 0;
 
 			if (byte[j] == '0') {
 
@@ -68,7 +68,7 @@ blockIndex* find_empty_block(){
 				strcpy(block->new_byte, byte);
 				block->new_byte[j] = '1';
 				break;
-			}	
+			}
 		}
 		if (encontrado){
 			break;
@@ -89,14 +89,13 @@ void change_bitmap(blockIndex* block){
 
 	FILE* file = fopen(disk_path, "w+b");
 	offset = 2048 * (block->block_number + 1) + block->byte_number;
-	
+
 	fseek(file, offset , SEEK_SET);
 	fwrite(block->new_byte, 1, 1, file);
 
 	fclose(file);
 
 }
-
 
 char * itoa (int value, char *result, int base){
 	// check that the base if valid
