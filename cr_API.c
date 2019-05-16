@@ -162,9 +162,7 @@ Funciones de manejo de archivos
 
 int cr_mkdir(char *foldername){
 
-	// Path hasta antes de la carpeta a crear
 	char* path_to_dir = dirfinder(foldername);
-	// Nombre de la carpeta para crear
 	char* new_dir = basefinder(foldername);
 
 	blockIndex* new_block = find_empty_block();
@@ -172,8 +170,8 @@ int cr_mkdir(char *foldername){
 
 	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
-
 	int existe = cr_exists(foldername);
+	
 	if (existe == 1){
 		printf("El directorio %s ya existe en %s", new_dir, path_to_dir);
 		free(buffer);
@@ -182,26 +180,28 @@ int cr_mkdir(char *foldername){
 	}
 
 	for( int j = 0; j < 64; j++){
+
 		fseek(f, 32 * j, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, f);
-		if ( buffer[0] == (unsigned char)1 || buffer[0] == (unsigned char)4) {
+
+		if ( buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4) {
 			printf( "\nCreando directorio %s en %s\n", new_dir, path_to_dir);
-			free(buffer);
 			fclose(f);
 
 			FILE * file = fopen(disk_path, "ab");
 
 			int int_pointer = 2048 * new_block->block_number;
-			char aux_pointer[4];
+			char aux_pointer[2];
 			char* pointer = itoa(int_pointer, aux_pointer, 10);
-
-			fseek(file, offset, SEEK_SET);
-
+			char * ceros = '00';
+			
 			buffer[0] = '2';
 
 			memcpy(&buffer[1], new_dir, 27);
-			memcpy(&buffer[27], pointer, 4);
+			memcpy(&buffer[28], ceros, 2);
+			memcpy(&buffer[30], pointer, 2);
 
+			fseek(file, 32 * j, SEEK_SET);
 			fwrite(buffer, 1, 32, file);
 
 			change_bitmap(new_block);
