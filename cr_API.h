@@ -6,6 +6,12 @@
 
 char disk_path[256];
 
+typedef struct crFILE{
+	unsigned char * cursor;
+	int offset;
+
+}crFILE;
+
 /*
 Funcion para montar el disco.
 Establece como variable global la ruta local donde se encuentra el archivo .bin correspondiente al disco. */
