@@ -10,12 +10,11 @@
 #include "cr_API.h"
 #include "library.h"
 
-
 unsigned int offset;
 crFILE puntero;
 
-// TODO REVISAR 
-//  
+// TODO REVISAR
+//
 int move_index(char* path, crFILE* p){
 	/*
 	if(strcmp(path[0],".") == 0){
@@ -30,7 +29,6 @@ int move_index(char* path, crFILE* p){
 	folder = strtok(path, "/");
 
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
-	FILE * f = fopen(disk_path, "rb");
 	while(folder){
 		for(int i = 0; i < 64; i++ ) {
 			fseek(f, 32 * i, SEEK_SET );
@@ -39,7 +37,7 @@ int move_index(char* path, crFILE* p){
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
 			if (buffer[0] == (unsigned char)1 ){
-				printf("Path invalido");
+				printf("Path invalido\n");
 				free(buffer);
 				fclose(f);
 				return 0;
@@ -114,14 +112,14 @@ Funcion para ver si un archivo o carpeta existe en la ruta especificada por path
 */
 
 int cr_exists(char* path){
-	return move_index(path);
+	return move_index(path, &puntero);
 }
 
 /*
 Funcion para listar los elementos de un directorio del disco.Imprime en pantalla los nombres
 de todos los archivos y directorios contenidos en el directorio indicado por path.*/
 
-// FIXME                               
+// FIXME
 void cr_ls(char* path){
 	FILE * f = fopen(disk_path, "rw");
 	char * folder = strtok(path, "/");
@@ -207,26 +205,26 @@ int cr_mkdir(char *foldername){
 
 		for(int j = 0;j<8;j++){
 			bloque++;
-			
+
 			byte[j] = (buffer[k] & (mask << j)) != 0;
 
 			printf("%d", byte[j]);
 			if (byte[j] == 0) {
 				encontrado = 1;
-				
+
 				strcpy(new_byte, byte);
 				new_byte[j] = 1;
 
 
 				break;
-			}	
+			}
 		}
 		if (encontrado){
 			break;
 		}
 	}
-	//TODO ACA TERMINA LA FUNCION 
-
+	//TODO ACA TERMINA LA FUNCION
+	return 0;
 }
 
 /*
@@ -240,12 +238,31 @@ crFILE * cr_open(char * path, char mode){
 	if (existe != 0 && mode == 'r'){
 		return open_file;
 	}
-	else if (mode == 'w'){
+	else if (existe == 0 && mode == 'w'){
 		crFILE * nuevo_archivo = malloc(sizeof(crFILE));
-		/*
-		Crear nuevo archivo
-		Cambiar bit del bloque en bitmap
-		*/
+		//int num = find_empty_block();
+		//change_bitmap_value(num);
+		int num = 1200;
+
+		unsigned char * archivo_indice = malloc(32*sizeof(unsigned char));
+		unsigned char nombre[27] = "New Germy.txt";
+		unsigned char numero[] = "4";
+		unsigned char new_block[4];
+		new_block[0] = (unsigned char) 0;
+		new_block[1] = (unsigned char) 0;
+		new_block[2] = (unsigned char) ((num)>>8) & 0xFF;
+		new_block[3] = (unsigned char) (num) & 0xFF;
+		memcpy(archivo_indice, numero, 1);
+		memcpy(archivo_indice + 1, nombre, 27);
+		memcpy(archivo_indice + 27, new_block, 4);
+		for (size_t i = 0; i < 32; i++) {
+			printf("archivo_indice[%zu]=%c\n",i, archivo_indice[i]);
+		}
+
+		printf("NUEVO NOMBRE: %s\n", archivo_indice);
+		//Crear nuevo archivo
+		//Cambiar bit del bloque en bitmap
+
 		return open_file;
 	}
 	else{
@@ -360,11 +377,15 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 			int offset = (int)punteros[2] * 256 + (int)punteros[3];
 			// GO TO BLOCK AND RIGHT INDEX
 
-
 			FILE * wfile = fopen(disk_path, "r+b");
 			fseek(wfile, offset*2048 + index, SEEK_SET);
 			int wr = fwrite("HOLA GERMY!", (size_t) 1, (size_t) nbytes, wfile);
 			printf("WROTE %d\n", wr);
+			// CHANGE FILE SIZE OF ARCHIVE
+			fseek(wfile, index_block_num*2048 + 2, SEEK_SET);
+			char new_size[2] = {((file_size+nbytes)>>8) & 0xFF, (file_size+nbytes) & 0xFF};
+			fwrite(new_size, 1, 2, wfile);
+			fclose(wfile);
 
 		}
 		else{
@@ -374,14 +395,9 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 			// GO TO BLOCK
 			// WRITE DATA TO BLOCK
 		}
-
 	}
 
-	// CHANGE FILE SIZE OF ARCHIVE
-	fseek(wfile, index_block_num*2048 + 2, SEEK_SET);
-	char new_size[2] = {((file_size+nbytes)>>8) & 0xFF, (file_size+nbytes) & 0xFF};
-	fwrite(new_size, 1, 2, wfile);
-	fclose(wfile);
+
 
 	return nbytes;
 }
