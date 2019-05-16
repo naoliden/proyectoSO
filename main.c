@@ -5,6 +5,7 @@
 int main() {
     cr_mount("./simdiskfilled.bin");
     //cr_mkdir("HALLO.txt");
+    /*
     cr_ls("");
     cr_bitmap();
     void * write = malloc(2000 * sizeof(unsigned int));
@@ -15,5 +16,9 @@ int main() {
     void * output = malloc(400 * sizeof(unsigned int));
     cr_read(germy, output, 400);
     free(output);
+    */
+
+    crFILE * new = cr_open("HELLO_WORLD.txt", 'w');
+
     return 0;
 }
