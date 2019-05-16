@@ -13,13 +13,16 @@
 
 unsigned int offset;
 
-int move_index(char* path, crFILE * p){
+// TODO REVISAR 
+//  
+int move_index(char* path, crFILE* p){
 	/*
 	if(strcmp(path[0],".") == 0){
 		memcpy(path, path[1], sizeof(path));
 	}
 	*/
-	p->offset = 0;
+	// p->offset = 0;
+
 	FILE * f = fopen(disk_path, "rb");
 	char * folder = malloc(256*sizeof(char));
 	folder = strtok(path, "/");
@@ -85,14 +88,16 @@ void cr_bitmap(){
 	int uno = 0;
 	int cero = 0;
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 2048*4);
-	puntero.cursor = puntero.root;
-	fseek(puntero.cursor, 2048, SEEK_SET);
-	fread(buffer, 1, 2048*4, puntero.cursor);
+
+	FILE* file = fopen(disk_path, "rb");
+
+	fseek(file, 2048, SEEK_SET);
+	fread(buffer, 1, 2048*4, file);
 	for (int k = 0; k < 2048*4; k++) {
 		unsigned char bits[8];
 		for(int j = 0;j<8;j++){
 			bits[j] = (buffer[k] & (mask << j)) != 0;
-			printf("%d", bits[j]);
+			// printf("%d", bits[j]);
 			if (bits[j] == 1) {
 				uno++;
 			}
@@ -112,13 +117,14 @@ Funcion para ver si un archivo o carpeta existe en la ruta especificada por path
 */
 
 int cr_exists(char* path){
-	return move_index(path, &puntero);
+	return move_index(path);
 }
 
 /*
 Funcion para listar los elementos de un directorio del disco.Imprime en pantalla los nombres
 de todos los archivos y directorios contenidos en el directorio indicado por path.*/
 
+// FIXME                               
 void cr_ls(char* path){
 	FILE * f = fopen(disk_path, "rw");
 	char * folder = strtok(path, "/");
@@ -179,53 +185,55 @@ int cr_mkdir(char *foldername){
 			i++;
 		}
 	}
+
 	
 	// Path hast antes de la carpeta a crear
-	path_to_dir = dirfinder(foldername);
+	char* path_to_dir = dirfinder(foldername);
 	// Nombre de la carpeta para crear
-	new_dir = basefinder(foldername);
+	char* new_dir = basefinder(foldername);
 	//move_index(path_to_dir);
-	//
 
-
-	directory[1]= (unsigned char)foldername;
-	printf("DIRECTORY IS %s\n", directory+1);
-	unsigned char * buffer = malloc( sizeof( unsigned char ) * 2048*4);
+	//TODO HACER FUNCION. ECUNETRA PRIMER BLOQUE VACIO Y RETORNA EL NUMERO DE BLOQUE.
 	unsigned char mask = 1;
-	puntero.cursor = puntero.root;
-	fseek(puntero.cursor, 2048, SEEK_SET);
-	fread(buffer, 1, 2048*4, puntero.cursor);
-	int index = -1;
-	for (int k = 0; k < 2048*4; k++) {
-		unsigned char bits[8];
-		for(int j = 0;j<8;j++){
-			index++;
-			bits[j] = (buffer[k] & (mask << j)) != 0;
-			if (bits[j] == 0){
-				directory[31] = (unsigned int)index;
-				printf( "MAKING DIR %s index: %u\n", directory + 1, (unsigned int)directory[30] * 256 + (unsigned int)directory[31] );
-				index = -1;
-				break;
-			}
-		}
-		if (index == -1) {
-			break;
-		}
-	}
-	puntero.cursor = puntero.root;
-	for( int i = 0; i < 64; i++ ) {
-		fseek(puntero.cursor, 32 * i, SEEK_SET );
-		fread(buffer, sizeof( unsigned char ), 32, puntero.cursor );
+	unsigned char * buffer = malloc( sizeof( unsigned char ) * 2048*4);
 
-		if (buffer[0] == (unsigned char)0 ) {
-			puntero.cursor = (FILE*)directory;
-			free(directory);
+	FILE* file = fopen(disk_path, "rb");
+
+	fseek(file, 2048, SEEK_SET);
+	fread(buffer, 1, 2048*4, file);
+	unsigned int bloque = 0;
+
+	int encontrado = 0;
+	unsigned char new_byte[8];
+
+	for (int k = 0; k < 2048*4; k++) {
+		unsigned char byte[8];
+
+		for(int j = 0;j<8;j++){
+			bloque++;
+			
+			byte[j] = (buffer[k] & (mask << j)) != 0;
+
+			printf("%d", byte[j]);
+			if (byte[j] == 0) {
+				encontrado = 1;
+				
+				strcpy(new_byte, byte);
+				new_byte[j] = 1;
+
+
+				break;
+			}	
+		}
+		if (encontrado){
 			break;
 		}
-		if(i == 63){printf("QUE PASA\n");}
 	}
 	free(buffer);
-	return 0;
+	fclose(file);
+
+	//TODO ACA TERMINA LA FUNCION 
+
 }
 
 /*
