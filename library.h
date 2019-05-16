@@ -13,6 +13,6 @@ blockIndex* find_empty_block();
 
 void change_bitmap(blockIndex* block);
 
-
+char* itoa (int value, char *result, int base);
 
 

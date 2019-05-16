@@ -159,7 +159,6 @@ Funciones de manejo de archivos
 
 int cr_mkdir(char *foldername){
 
-	//fixme verificar que no exista el directorio antes de hacer todo
 	// Path hasta antes de la carpeta a crear
 	char* path_to_dir = dirfinder(foldername);
 	// Nombre de la carpeta para crear
@@ -187,11 +186,20 @@ int cr_mkdir(char *foldername){
 			free(buffer);
 			fclose(f);
 
-			//todo escribir que hay directorio en directorio padre
 			FILE * file = fopen(disk_path, "ab");
-			buffer[0] = '2';
-			memcpy(buffer[1], &new_dir, strlen(new_dir)+1);
 
+			int int_pointer = 2048 * new_block->block_number;
+			char aux_pointer[4];
+			char* pointer = itoa(int_pointer, aux_pointer, 10);
+
+			fseek(file, offset, SEEK_SET);
+
+			buffer[0] = '2';
+      
+			memcpy(&buffer[1], new_dir, 27);
+			memcpy(&buffer[27], pointer, 4);
+
+			fwrite(buffer, 1, 32, file);
 
 			change_bitmap(new_block);
 			return 1;
