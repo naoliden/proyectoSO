@@ -24,6 +24,8 @@ int move_index(char* path, crFILE* p){
 	p->offset = -1;
 
 	char * folder = malloc(256*sizeof(char));
+	int level = 0;
+
 	folder = strtok(path, "/");
 
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
@@ -43,6 +45,7 @@ int move_index(char* path, crFILE* p){
 				if (strcmp(folder, folder_name) == 0){
 					p->offset = p->offset + 28;
 					folder = strtok(NULL, "/");
+					level++;
 					break;
 				}
 			}
@@ -125,7 +128,7 @@ void cr_ls(char* path){
 	unsigned char index_block[4];
 
 	int index_block_num = 0;
-	if(puntero.offset != NULL){
+	if(puntero.offset > 0){
 		fseek(f, puntero.offset, SEEK_SET);
 		fread(index_block, 1, 4, f);
 		index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];

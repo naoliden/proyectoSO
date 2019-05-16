@@ -5,7 +5,7 @@
 int main() {
     cr_mount("./simdiskfilled.bin");
 
-    cr_ls("memes");
+    cr_ls("/thanos/");
 
     /*
     void * write = malloc(2000 * sizeof(unsigned int));

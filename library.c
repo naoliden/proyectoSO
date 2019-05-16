@@ -52,8 +52,8 @@ blockIndex* find_empty_block(){
 	fseek(file, 2048, SEEK_SET);
 	fread(buffer, 1, 2048*4, file);
 
+	unsigned char * byte = malloc(sizeof(char) * 8);
 	for (int k = 0; k < 2048*4; k++) {
-		unsigned char byte[8];
 		for(int j = 0; j<8; j++){
 
 			block_num++;
@@ -65,7 +65,9 @@ blockIndex* find_empty_block(){
 				block->block_number = block_num;
 				block->byte_number = k;
 				block->bit_number = j;
-				strcpy(block->new_byte, byte);
+
+				memcpy(block->new_byte, byte, 8);
+				// strcpy(block->new_byte, byte);
 				block->new_byte[j] = '1';
 				break;
 			}
@@ -74,6 +76,7 @@ blockIndex* find_empty_block(){
 			break;
 		}
 	}
+	free(byte);
 	free(buffer);
 	fclose(file);
 	return block;
