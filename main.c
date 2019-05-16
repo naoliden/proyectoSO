@@ -5,12 +5,15 @@
 int main() {
     cr_mount("./simdiskfilled.bin");
     //cr_mkdir("HALLO.txt");
-    cr_ls("memes");
-    //cr_bitmap();
-    void * output = malloc(2000 * sizeof(unsigned int));
-    crFILE* germy = cr_open("Program in C.mkv", 'r');
-    cr_read(germy, output, 4000);
+    cr_ls("");
+    cr_bitmap();
+    void * write = malloc(2000 * sizeof(unsigned int));
+    char str[] = "HOLA GERMY!";
+    strcpy(write, str);
+    crFILE * germy = cr_open("germy.txt", 'r');
+    cr_write(germy, write, sizeof(str));
+    void * output = malloc(400 * sizeof(unsigned int));
+    cr_read(germy, output, 400);
     free(output);
-
     return 0;
 }
