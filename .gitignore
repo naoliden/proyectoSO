@@ -2,3 +2,5 @@ AyudantiaP1-2/simdiskfilled.bin
 *.bin
 !.gitignore
 *.vscode/
+discos/
+main
