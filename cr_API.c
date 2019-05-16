@@ -13,14 +13,12 @@
 unsigned int offset;
 crFILE puntero;
 
-// TODO REVISAR
-//
+// review REVISAR 
+//  
+
 int move_index(char* path, crFILE* p){
-	/*
-	if(strcmp(path[0],".") == 0){
-		memcpy(path, path[1], sizeof(path));
-	}
-	*/
+	
+
 	FILE * f = fopen(disk_path, "rb");
 
 	p->offset = 0;
@@ -69,8 +67,6 @@ void cr_mount(char* diskname){
 	memset(disk_path, '\0', sizeof(disk_path));
 	strcpy(disk_path, diskname);
 
-	// FILE* f = fopen(diskname, "rb");
-	// puntero.root = f;
 }
 
 /*
@@ -162,68 +158,55 @@ Funciones de manejo de archivos
 */
 
 int cr_mkdir(char *foldername){
-	/*
-	1. Verify that directory does not exist
-	2. Find unused block in bitmap
-	3. Set block in bitmap to 1
-	4. Save a 32 bit string with indicator, name and location of puntero in the directory where new directory should be saved
-	*/
-
-	unsigned char* directory = malloc( sizeof( unsigned char ) * 32 );
-	directory[0] = (unsigned char)2;
-
-	int i = 0;
-	unsigned int* foldername_bin = malloc(sizeof(unsigned int) * 27);
-	while (foldername[i] != '\0'){
-		for (int j = 7; j >= 0; --j){
-			foldername_bin[i] = ( (foldername[i] & (1 << j)) ? '1' : '0' );
-			i++;
-		}
-	}
-
-	// Path hast antes de la carpeta a crear
+	// Path hasta antes de la carpeta a crear
 	char* path_to_dir = dirfinder(foldername);
 	// Nombre de la carpeta para crear
 	char* new_dir = basefinder(foldername);
 
-	//TODO HACER FUNCION. ECUNETRA PRIMER BLOQUE VACIO Y RETORNA EL NUMERO DE BLOQUE.
-	unsigned char mask = 1;
-	unsigned char * buffer = malloc( sizeof( unsigned char ) * 2048*4);
+	blockIndex* new_block = find_empty_block();
+	move_index(path_to_dir, &puntero);
 
-	FILE* file = fopen(disk_path, "rb");
+	FILE * f = fopen(disk_path, "rb");
+	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
+	
+	int existe = cr_exists(foldername);
+	if (existe == 0){
+		printf("El directorio %s ya existe en %s", new_dir, path_to_dir);
+		free(buffer);
+		fclose(f);
+		return 0;
+	}
 
-	fseek(file, 2048, SEEK_SET);
-	fread(buffer, 1, 2048*4, file);
-	unsigned int bloque = 0;
+	for( int j = 0; j < 64; j++){
+		fseek(f, 32 * j, SEEK_SET);
+		fread(buffer, sizeof( unsigned char ), 32, f);
+		if ( buffer[0] == (unsigned char)1 || buffer[0] == (unsigned char)4) {
+			printf( "\nCreando directorio %s en %s\n", new_dir, path_to_dir);
+			free(buffer);
+			fclose(f);
 
-	int encontrado = 0;
-	unsigned char new_byte[8];
+			FILE * file = fopen(disk_path, "ab");
 
-	int index = -1;
-	for (int k = 0; k < 2048*4; k++) {
-		unsigned char byte[8];
+			int int_pointer = 2048 * new_block->block_number;
+			char aux_pointer[4];
+			char* pointer = itoa(int_pointer, aux_pointer, 10);
 
-		for(int j = 0;j<8;j++){
-			bloque++;
+			fseek(file, offset, SEEK_SET);
 
-			byte[j] = (buffer[k] & (mask << j)) != 0;
+			buffer[0] = '2';
 
-			printf("%d", byte[j]);
-			if (byte[j] == 0) {
-				encontrado = 1;
+			memcpy(&buffer[1], new_dir, 27);
+			memcpy(&buffer[27], pointer, 4);
 
-				strcpy(new_byte, byte);
-				new_byte[j] = 1;
+			fwrite(buffer, 1, 32, file);
 
-
-				break;
-			}
-		}
-		if (encontrado){
-			break;
+			change_bitmap(new_block);
+			return 1;
 		}
 	}
-	//TODO ACA TERMINA LA FUNCION
+	printf( "\nNo hay espacio suficiente en el bloque\n");
+	free(buffer);
+	fclose(f);
 	return 0;
 }
 
