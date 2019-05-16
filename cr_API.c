@@ -21,7 +21,7 @@ int move_index(char* path, crFILE* p){
 
 	FILE * f = fopen(disk_path, "rb");
 
-	p->offset = -1;
+	p->offset = 0;
 
 	char * folder = malloc(256*sizeof(char));
 	int level = 0;
@@ -174,7 +174,7 @@ int cr_mkdir(char *foldername){
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 
 	int existe = cr_exists(foldername);
-	if (existe == 0){
+	if (existe == 1){
 		printf("El directorio %s ya existe en %s", new_dir, path_to_dir);
 		free(buffer);
 		fclose(f);
@@ -198,7 +198,7 @@ int cr_mkdir(char *foldername){
 			fseek(file, offset, SEEK_SET);
 
 			buffer[0] = '2';
-      
+
 			memcpy(&buffer[1], new_dir, 27);
 			memcpy(&buffer[27], pointer, 4);
 
