@@ -21,6 +21,8 @@ typedef struct crFILE{
 	int offset;
 	int exists;
 	unsigned int block;
+	unsigned int entry;
+	unsigned int dir;
 	unsigned char file_name[27];
 	unsigned char data[2048];
 }crFILE;

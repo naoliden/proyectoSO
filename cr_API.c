@@ -31,7 +31,8 @@ int move_index(char* path, crFILE* p){
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
 	while(folder){
 
-		// review 
+		//review 
+		
 		unsigned int salto_a_bloque = p->block * 2048;
 
 		for(int i = 0; i < 64; i++ ) {
@@ -51,12 +52,17 @@ int move_index(char* path, crFILE* p){
 					strcpy(p->file_name, folder_name);
 					p->offset = p->offset + 28;
 					
-					//todo
-					
+					//todo revisar esto.
+					if (buffer[0] == (unsigned char)2){
+						p->dir = 1;
+					} else {
+						p->dir = 0;
+					}
+				
 					char block_number_str[4];
 					memcpy(block_number_str, &buffer[28], 4);
 					p->block = atoi(block_number_str);
-
+					p->entry = i;
 					folder = strtok(NULL, "/");
 					level++;
 					break;
@@ -73,6 +79,10 @@ int move_index(char* path, crFILE* p){
 	free(buffer);
 	fclose(f);
 	p->exists = 1;
+
+
+	printf("\nApuntando al bloque: %d\n", p->block);
+
 	return 1;
 }
 
@@ -538,15 +548,37 @@ Funcio ́n que se encarga de crear un hardlink del archivo referenciado por orig
 aumentando la cantidad de referencias al archivo original.*/
 
 int cr_hardlink(char* orig, char* dest){
+
+	// REVIEW supuesto, char* orig es un archivo y char* dest un directorio.
+
 	int existe = move_index(dest, &puntero);
-	if (existe == 0){
-
+	if (existe == 1){
+		printf("Ya existe un hardlink con este nombre en este directorio\n");
+		return 0;
 	}
-	// TODO hace funcion que retorne el numero de bloque del archivo que se busca por move_index, o que muve index retorne uns struct blockIndex
 
+	FILE* file = fopen(disk_path, "r+b");
+	char * buffer = malloc(sizeof(char) * 32);
+	char * dir = dirfinder(orig);
+	char * filename = basefinder(orig);
 
+	for(int i = 0; i < 64; i++){
+		fseek(file, puntero.block * 2048 + i * 32, SEEK_SET);
+		fread(buffer, sizeof( unsigned char ), 32, file);
+		if (buffer[0] != (unsigned char)2 || buffer[0] != (unsigned char)4){
+			// Si no es ni archivo ni directorio, es una entrada libre.
+			
+			free(buffer);
+			fclose(file);
+			return 1;
+		} else {
+			printf("No quedan entradas disponibles en el directorio %s", dest);
+			break;
+		}
+	}
 	
-
+	free(buffer);
+	fclose(file);
 	return 0;
 }
 
