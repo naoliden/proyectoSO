@@ -7,8 +7,8 @@
 
 char disk_path[256];
 
-
 typedef struct blockIndex {
+	// Si algo falla tal vez haya que cambiar block_number a unsigned
 	int block_number;
 	int byte_number;
 	int bit_number;
@@ -19,9 +19,10 @@ typedef struct blockIndex {
 typedef struct crFILE{
 	unsigned char * cursor;
 	int offset;
+	int exists;
+	unsigned int block;
 	unsigned char file_name[27];
-	unsigned char data[1021 * 2048];
-	blockIndex block;
+	unsigned char data[2048];
 }crFILE;
 
 

@@ -16,10 +16,12 @@ crFILE puntero;
 
 int move_index(char* path, crFILE* p){
 
+	// crFILE fileStruct;
 
 	FILE * f = fopen(disk_path, "rb");
 
 	p->offset = 0;
+	p->block = 0;
 
 	char * folder = malloc(256*sizeof(char));
 	int level = 0;
@@ -28,12 +30,17 @@ int move_index(char* path, crFILE* p){
 
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
 	while(folder){
+
+		// review 
+		unsigned int salto_a_bloque = p->block * 2048;
+
 		for(int i = 0; i < 64; i++ ) {
-			fseek(f, 32 * i, SEEK_SET );
+			fseek(f, salto_a_bloque + 32 * i, SEEK_SET);
 			p->offset = 32*i;
 			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
+			
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido\n");
 				free(buffer);
@@ -41,7 +48,15 @@ int move_index(char* path, crFILE* p){
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
+					strcpy(p->file_name, folder_name);
 					p->offset = p->offset + 28;
+					
+					//todo
+					
+					char block_number_str[4];
+					memcpy(block_number_str, &buffer[28], 4);
+					p->block = atoi(block_number_str);
+
 					folder = strtok(NULL, "/");
 					level++;
 					break;
@@ -50,12 +65,14 @@ int move_index(char* path, crFILE* p){
 			if (i == 63) {
 				free(buffer);
 				fclose(f);
+				p->exists = 0;
 				return 0;
 			}
 		}
 	}
 	free(buffer);
 	fclose(f);
+	p->exists = 1;
 	return 1;
 }
 
@@ -264,10 +281,12 @@ int cr_mkdir(char *foldername){
 	char* new_dir = basefinder(foldername);
 
 	blockIndex* new_block = find_empty_block();
-	move_index(path_to_dir, &puntero);
+	// move_index(path_to_dir, &puntero);
 
 	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
+
+	// Review, cr_exists también llama a move_index, por lo que no es necesario llamar a move_index antes.
 	int existe = cr_exists(foldername);
 	
 	if (existe == 1){
@@ -289,20 +308,24 @@ int cr_mkdir(char *foldername){
 			FILE * file = fopen(disk_path, "ab");
 
 			// puntero es solo el numero de bloque
-			int int_pointer = new_block->block_number;
-			char aux_pointer[2];
+			unsigned int int_pointer = new_block->block_number;
+			char aux_pointer[4];
 			char* pointer = itoa(int_pointer, aux_pointer, 10);
-			char * ceros = '00';
+			// char * ceros = '00';
 			
 			buffer[0] = '2';
 
 
-
 			// review guardar el puntero como unsigned int, germy no sabe si fuciona como char
 			memcpy(&buffer[1], new_dir, 27);
-			memcpy(&buffer[28], ceros, 2);
-			memcpy(&buffer[30], pointer, 2);
-
+			
+			// Se supone que los strings terminan en cero, asi el compilador los indentifica.
+			buffer[27] = 0;
+			
+			memcpy(&buffer[28], pointer, 4);
+			// memcpy(&buffer[28], ceros, 2);
+			// memcpy(&buffer[30], pointer, 2);
+			
 			fseek(file, 32 * j, SEEK_SET);
 			fwrite(buffer, 1, 32, file);
 
@@ -515,6 +538,15 @@ Funcio ́n que se encarga de crear un hardlink del archivo referenciado por orig
 aumentando la cantidad de referencias al archivo original.*/
 
 int cr_hardlink(char* orig, char* dest){
+	int existe = move_index(dest, &puntero);
+	if (existe == 0){
+
+	}
+	// TODO hace funcion que retorne el numero de bloque del archivo que se busca por move_index, o que muve index retorne uns struct blockIndex
+
+
+	
+
 	return 0;
 }
 
