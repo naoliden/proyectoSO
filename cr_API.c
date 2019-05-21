@@ -9,10 +9,8 @@
 // Librerias propias
 #include "cr_API.h"
 
-
 unsigned int offset;
 crFILE puntero;
-
 
 int move_index(char* path, crFILE* p){
 
