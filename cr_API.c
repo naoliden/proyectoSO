@@ -61,7 +61,7 @@ int move_index(char* path, crFILE* p){
 				
 					char block_number_str[4];
 					memcpy(block_number_str, &buffer[28], 4);
-					p->block = atoi(block_number_str);
+					p->block = (unsigned int)atoi(block_number_str);
 					p->entry = i;
 					folder = strtok(NULL, "/");
 					level++;
@@ -163,12 +163,12 @@ void change_bitmap(blockIndex* block){
 }
 
 
-char * itoa (int value, char *result, int base){
+unsigned char * itoa(unsigned int value, unsigned char *result, int base){
 	// check that the base if valid
 	if (base < 2 || base > 36) { *result = '\0'; return result; }
 
-	char* ptr = result, *ptr1 = result, tmp_char;
-	int tmp_value;
+	unsigned char* ptr = result, *ptr1 = result, tmp_char;
+	unsigned int tmp_value;
 
 	do {
 		tmp_value = value;
@@ -319,8 +319,8 @@ int cr_mkdir(char *foldername){
 
 			// puntero es solo el numero de bloque
 			unsigned int int_pointer = new_block->block_number;
-			char aux_pointer[4];
-			char* pointer = itoa(int_pointer, aux_pointer, 10);
+			unsigned char aux_pointer[4];
+			unsigned char* pointer = itoa(int_pointer, aux_pointer, 10);
 			// char * ceros = '00';
 			
 			buffer[0] = '2';
@@ -562,21 +562,49 @@ int cr_hardlink(char* orig, char* dest){
 	char * dir = dirfinder(orig);
 	char * filename = basefinder(orig);
 
+	// Voy al dir del hardlink y veo si puedo crearlo, move_index ya setteo el puntero.
 	for(int i = 0; i < 64; i++){
-		fseek(file, puntero.block * 2048 + i * 32, SEEK_SET);
+		unsigned int dir_pointer = puntero.block;
+		fseek(file, dir_pointer * 2048 + i * 32, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, file);
+
 		if (buffer[0] != (unsigned char)2 || buffer[0] != (unsigned char)4){
 			// Si no es ni archivo ni directorio, es una entrada libre.
-			
-			free(buffer);
-			fclose(file);
-			return 1;
-		} else {
-			printf("No quedan entradas disponibles en el directorio %s", dest);
-			break;
+			memcpy(&buffer[0], "4", 1);
+			memcpy(&buffer[1], filename, 27);
+
+			// Reviso el archivo al que le crearé el hardlink.
+			// nuevamente move_index setea al puntero
+			int archivo = move_index(orig, &puntero);
+
+			if (archivo == 1){
+				char * buffer_archivo = malloc(sizeof(char) * 4);
+				// unsigned int de 4 bytes para la cantidad de hardlinks
+
+				unsigned int int_pointer = puntero.block;
+				unsigned char aux_pointer[4];
+				unsigned char * bloque_archivo = itoa(int_pointer, aux_pointer, 10);
+				memcpy(&buffer[27], bloque_archivo, 4);
+
+				fseek(file, puntero.block * 2048 + 4, SEEK_SET);
+				fread(buffer_archivo, 1, 4 , file);
+				unsigned int hl_counter = (unsigned int)atoi(buffer_archivo);
+				hl_counter++;
+				// review Cuando escribo, debo escribir el numero como int o char?
+				fwrite(hl_counter, 1, 4,file);
+				free(buffer_archivo);
+				free(buffer);
+				fclose(file);
+				return 1;
+
+			} else {
+				printf("\nNo existe el archivo referenciado\n");
+				free(buffer);
+				fclose(file);
+				return 0;
+			}
 		}
 	}
-	
 	free(buffer);
 	fclose(file);
 	return 0;
