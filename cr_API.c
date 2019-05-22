@@ -47,7 +47,8 @@ int move_index(char* path, crFILE* p){
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
-					strcpy(p->file_name, folder_name);
+					// strcpy(p->file_name, folder_name);
+					memcpy(p->file_name, folder_name, strlen(folder_name)+1);
 					p->offset = p->offset + 28;
 					
 					//todo revisar esto.
@@ -588,6 +589,9 @@ int cr_hardlink(char* orig, char* dest){
 				fread(buffer_archivo, 1, 4 , file);
 				unsigned int hl_counter = (unsigned int)atoi(buffer_archivo);
 				hl_counter++;
+
+				unsigned char aux[4];
+				unsigned char * hl_counter_char = itoa(hl_counter, aux, 10);
 				// review Cuando escribo, debo escribir el numero como int o char?
 				fwrite(hl_counter, 1, 4,file);
 				free(buffer_archivo);
