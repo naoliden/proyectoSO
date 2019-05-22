@@ -9,6 +9,8 @@ int main(int argc, char *argv[]) {
     cr_mount("./simdiskfilled-old.bin");
   }
   cr_ls("memes");
+  cr_mkdir("memes/mari");
+  cr_ls("memes");
   void * write = malloc(2000 * sizeof(unsigned int));
   char str[] = "HOLA GERMY!";
   strcpy(write, str);

@@ -297,7 +297,6 @@ int cr_mkdir(char *foldername){
 	// move_index(path_to_dir, &puntero);
 
 	FILE * f = fopen(disk_path, "r+b");
-	FILE * file = fopen(disk_path, "r+b");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 
 	// Review, cr_exists también llama a move_index, por lo que no es necesario llamar a move_index antes.
@@ -317,7 +316,6 @@ int cr_mkdir(char *foldername){
 
 		if ( buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4) {
 			printf( "\nCreando directorio %s en %s\n", new_dir, path_to_dir);
-			fclose(f);
 
 			// puntero es solo el numero de bloque
 			unsigned int int_pointer = new_block->block_number;
@@ -337,10 +335,10 @@ int cr_mkdir(char *foldername){
 			memcpy(&buffer[28], pointer, 4);
 			printf("HEI ER DU HER: 3\n");
 
-			fseek(file, 32 * j, SEEK_SET);
+			fseek(f, 32 * j, SEEK_SET);
 			printf("HEI ER DU HER: 4\n");
 
-			fwrite(buffer, 1, 32, file);
+			fwrite(buffer, 1, 32, f);
 			printf("HEI ER DU HER: 5n");
 
 			change_bitmap(new_block);
