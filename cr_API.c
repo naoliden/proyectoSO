@@ -13,11 +13,6 @@ unsigned int offset;
 crFILE puntero;
 
 int move_index(char* path, crFILE* p){
-
-	if(strchr(path, '.')){
-    printf("FILE!!!!!\n");
-
-  }
   int counter = 0;
   int num_folders = 0;
   char * original_path = path;
@@ -32,7 +27,6 @@ int move_index(char* path, crFILE* p){
       num_folders++;
     }
     if(!*path++){
-			printf("HALLO??\n");
       if(num_folders>0 && !(pos_slash[num_folders-1] == counter-1)){
         pos_slash[num_folders] = counter;
         printf(" HALLO: %d\n", pos_slash[num_folders]);
