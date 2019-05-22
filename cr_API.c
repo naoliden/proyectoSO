@@ -14,32 +14,58 @@ crFILE puntero;
 
 int move_index(char* path, crFILE* p){
 
-	// crFILE fileStruct;
+	if(strchr(path, '.')){
+    printf("FILE!!!!!\n");
 
-	FILE * f = fopen(disk_path, "rb");
+  }
+  int counter = 0;
+  int num_folders = 0;
+  char * original_path = path;
+  int * pos_slash = malloc(10*sizeof(int));
 
-	p->offset = 0;
-	p->block = 0;
+  FILE * f = fopen(disk_path, "r");
+  int end = 1;
+  while(end==1){
+    if(path[0] == '/'){
+      pos_slash[num_folders] = counter;
+      printf(" HALLO: %d\n", pos_slash[num_folders]);
+      num_folders++;
+    }
+    if(!*path++){
+			printf("HALLO??\n");
+      if(num_folders>0 && !(pos_slash[num_folders-1] == counter-1)){
+        pos_slash[num_folders] = counter;
+        printf(" HALLO: %d\n", pos_slash[num_folders]);
+        num_folders++;
+      }
+			else if (num_folders == 0){
+				pos_slash[num_folders] = counter;
+				printf(" HALLO: %d\n", pos_slash[num_folders]);
+				num_folders ++;
+			}
+      end = 0;
+    }
+    counter ++;
+  }
 
-	char * folder = malloc(256*sizeof(char));
-	int level = 0;
+  unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
+  p->block = 0;
+  for(int j = 0; j<num_folders;j++){
 
-	folder = strtok(path, "/");
+    int beginning = 0;
+    if(j > 0){beginning = pos_slash[j-1]+1;}
+    else if (j == 0 && original_path[0] == '/'){beginning = 1;}
 
-	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
-	while(folder){
+    char * folder = malloc((pos_slash[j]-beginning)*sizeof(char));
+    memcpy(folder, &original_path[beginning], pos_slash[j]-beginning);
 
-		//review
-
-		unsigned int salto_a_bloque = p->block * 2048;
-
-		for(int i = 0; i < 64; i++ ) {
-			fseek(f, salto_a_bloque + 32 * i, SEEK_SET);
-			p->offset = 32*i;
+    for(int i = 0; i < 64; i++ ) {
+      p->offset = 32*i;
+			fseek(f, 2048*p->block + 32 * i, SEEK_SET );
 			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
-
+      printf("FOLDER IN FILE: %s\n", folder_name);
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido\n");
 				free(buffer);
@@ -47,41 +73,19 @@ int move_index(char* path, crFILE* p){
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
-					// strcpy(p->file_name, folder_name);
-					memcpy(p->file_name, folder_name, strlen(folder_name)+1);
-					p->offset = p->offset + 28;
-
-					//todo revisar esto.
-					if (buffer[0] == (unsigned char)2){
-						p->dir = 1;
-					} else {
-						p->dir = 0;
-					}
-
-					char block_number_str[4];
-					memcpy(block_number_str, &buffer[28], 4);
-					p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
-					p->entry = i;
-					folder = strtok(NULL, "/");
-					level++;
+        	p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
+          p->offset = p->offset + 28;
+          printf("BLOCK: %d\n", p->block);
 					break;
 				}
 			}
 			if (i == 63) {
 				free(buffer);
 				fclose(f);
-				p->exists = 0;
 				return 0;
 			}
 		}
-	}
-	free(buffer);
-	fclose(f);
-	p->exists = 1;
-
-
-	printf("\nApuntando al bloque: %d\n", p->block);
-
+  }
 	return 1;
 }
 
@@ -259,7 +263,7 @@ void cr_ls(char* path){
 	}
 
 	for( int i = 0; i < 64; i++ ) {
-		fseek(f, 2048*index_block_num + 32 * i, SEEK_SET);
+		fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, f);
 		if ( buffer[0] == (unsigned char)1 ) {
 			printf( "Entrada invalida\n");
@@ -292,7 +296,8 @@ int cr_mkdir(char *foldername){
 	blockIndex* new_block = find_empty_block();
 	// move_index(path_to_dir, &puntero);
 
-	FILE * f = fopen(disk_path, "rb");
+	FILE * f = fopen(disk_path, "r+b");
+	FILE * file = fopen(disk_path, "r+b");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 
 	// Review, cr_exists también llama a move_index, por lo que no es necesario llamar a move_index antes.
@@ -314,31 +319,32 @@ int cr_mkdir(char *foldername){
 			printf( "\nCreando directorio %s en %s\n", new_dir, path_to_dir);
 			fclose(f);
 
-			FILE * file = fopen(disk_path, "ab");
-
 			// puntero es solo el numero de bloque
 			unsigned int int_pointer = new_block->block_number;
 			unsigned char aux_pointer[4];
 			unsigned char* pointer = itoa(int_pointer, aux_pointer, 10);
 			// char * ceros = '00';
-
+			printf("HEI ER DU HER: 1\n");
 			buffer[0] = '2';
 
 
 			// review guardar el puntero como unsigned int, germy no sabe si fuciona como char
 			memcpy(&buffer[1], new_dir, 27);
-
+			printf("HEI ER DU HER: 2\n");
 			// Se supone que los strings terminan en cero, asi el compilador los indentifica.
 			buffer[27] = 0;
 
 			memcpy(&buffer[28], pointer, 4);
-			// memcpy(&buffer[28], ceros, 2);
-			// memcpy(&buffer[30], pointer, 2);
+			printf("HEI ER DU HER: 3\n");
 
 			fseek(file, 32 * j, SEEK_SET);
+			printf("HEI ER DU HER: 4\n");
+
 			fwrite(buffer, 1, 32, file);
+			printf("HEI ER DU HER: 5n");
 
 			change_bitmap(new_block);
+			printf("HEI ER DU HER: 6\n");
 			return 1;
 		}
 	}

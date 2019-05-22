@@ -8,13 +8,11 @@ int main(int argc, char *argv[]) {
   else{
     cr_mount("./simdiskfilled-old.bin");
   }
-  printf("ÅPNE FIL\n");
-
+  cr_ls("memes");
   void * write = malloc(2000 * sizeof(unsigned int));
   char str[] = "HOLA GERMY!";
   strcpy(write, str);
-  /*
-  */
+
   crFILE * germy = cr_open("germy.txt", 'r');
   printf("OPEN OK\n");
   cr_write(germy, write, sizeof(str));
