@@ -565,6 +565,7 @@ int cr_rm(char* path){
 	fread(buffer, 1, 4, file);
 	int hardlinks_counter = (int)buffer[0] * 16777216 + (int)buffer[1] * 65536 + (int)buffer[2] * 256 + (int)buffer[3];
 	printf("\n EL buffer es: %d", hardlinks_counter);
+	// DESCOMENTAR !!
 	// hardlinks_counter--;
 	// char new_block[4] = {(hardlinks_counter>>24) & 0xFF, (hardlinks_counter>>16) & 0xFF, (hardlinks_counter>>8) & 0xFF, (hardlinks_counter) & 0xFF};
 	// fseek(file, 2048*bloque_archivo + 4, SEEK_SET);
@@ -575,7 +576,15 @@ int cr_rm(char* path){
 
 	if (hardlinks_counter == 0){
 		printf("\nSe borra el ultimo hardlink\n");
+		// leer los punteros de direccionamiento directo
+		unsigned char * buffer = malloc(2000*sizeof(unsigned char));
 		fseek(file, 2048 * bloque_archivo + 8, SEEK_SET);
+		fread(buffer, 4, 500, file);
+		for (int i = 0 ; i < 500; i++){
+			// hacer move para conocer el bloque del puntero, usar funcion que invalide el bloque en el bitmap	
+		}
+
+		// hacer lo mismo con los ultimos 10 punteros (40 bytes)
 
 	}
 
