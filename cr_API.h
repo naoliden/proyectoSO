@@ -4,7 +4,6 @@
 #include <string.h>
 #include <unistd.h>
 
-
 char disk_path[256];
 
 typedef struct blockIndex {
@@ -36,7 +35,7 @@ blockIndex* find_empty_block();
 
 void change_bitmap(blockIndex* block);
 
-char* itoa (int value, char *result, int base);
+unsigned char * itoa (unsigned int value, unsigned char *result, int base);
 
 void cr_mount(char* diskname);
 
