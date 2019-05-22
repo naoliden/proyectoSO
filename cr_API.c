@@ -213,7 +213,7 @@ void cr_bitmap(){
 	fread(buffer, 1, 2048*4, f);
 	for (int k = 0; k < 2048*4; k++) {
 		unsigned char bits[8];
-		for(int j = 0;j<8;j++){
+		for(int j = 7;j>-1;j--){
 			bits[j] = (buffer[k] & (mask << j)) != 0;
 			printf("%d", bits[j]);
 			if (bits[j] == 1) {
@@ -569,8 +569,9 @@ int cr_rm(char* path){
 	// Invalidar bloques si hardlinks = 0 en bitmap
 	if (hardlinks_counter == 0){
 		printf("\nSe borra el ultimo hardlink\n");
-		// leer los punteros de direccionamiento directo
+		// Leer los punteros de direccionamiento directo
 		unsigned char * buffer = malloc(2000*sizeof(unsigned char));
+		unsigned char mask = 1;
 		fseek(file, 2048 * bloque_archivo + 8, SEEK_SET);
 		fread(buffer, 1, 2000, file);
 		unsigned int block_number;
@@ -583,31 +584,39 @@ int cr_rm(char* path){
 				break;
 			}
 
+			// Leer el BYTE del bitmap que contiene el BIT correspondiente al bloque
 			unsigned char * bitmap_byte = malloc(sizeof(unsigned char));
 			block_byte_number = block_number/8;
 			block_byte_offset = block_number%8;
 			fseek(file, 2048 + block_byte_number, SEEK_SET);
 			fread(bitmap_byte, 1, 1, file);
-
-			for(int j = 0; j<8; j++){
-				// bit[j] = (buffer[k] & (mask << j)) != 0;
-
-				// if (byte[j] == '0') {
-				// 	encontrado = 1;
-				// 	block->block_number = block_num;
-				// 	block->byte_number = k;
-				// 	block->bit_number = j;
-
-				// 	memcpy(block->new_byte, byte, 8);
-				// 	block->new_byte[j] = '1';
-				// 	break;
-				// }
+			printf("El offset es: %u \n", block_byte_offset);
+			
+			// Transformar el BYTE a BIT
+			unsigned char bits[8];
+			for(int j = 7;j>-1;j--){
+				bits[j] = (bitmap_byte[0] & (mask << j)) != 0;
+				printf("%d", bits[j]);
 			}
+
+			// Cambiar el BIT correspondiente a 0 y actualizar el bitmap
+			bits[block_byte_offset] = 0;
+			fseek(file, 2048 + block_byte_number, SEEK_SET);
+			fwrite(bits, 1, 1, file);
+
+			//CHECKEO
+			printf("\nByte actualizado\n");
+			fseek(file, 2048 + block_byte_number, SEEK_SET);
+			fread(bitmap_byte, 1, 1, file);
+			for(int j = 7;j>-1;j--){
+				bits[j] = (bitmap_byte[0] & (mask << j)) != 0;
+				printf("%d", bits[j]);
+			}
+
 
 		}
 
 	}
-
 
 	free(buffer);
 	fclose(file);

@@ -6,11 +6,9 @@ int main(int argc, char *argv[]) {
     cr_mount(argv[1]);
   }
   else{
-    cr_mount("./simdiskfilled-old.bin");
+    cr_mount("./simdiskfilled.bin");
   }
-  cr_ls("memes");
-  cr_mkdir("memes/mari");
-  cr_ls("memes");
+  cr_rm("germy.txt");
 
 /*
 void * write = malloc(2000 * sizeof(unsigned int));
