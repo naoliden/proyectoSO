@@ -151,8 +151,8 @@ void change_bitmap(blockIndex* block){
 
 	unsigned int offset;
 
-	FILE* file = fopen(disk_path, "w+b");
-	offset = 2048 * (block->block_number + 1) + block->byte_number;
+	FILE* file = fopen(disk_path, "r+b");
+	offset = 2048 * (block->block_number) + block->byte_number;
 
 	fseek(file, offset , SEEK_SET);
 	fwrite(block->new_byte, 1, 1, file);
@@ -401,49 +401,49 @@ Esto es importante si nbytes es mayor a la cantidad de Byte restantes en el arch
 desde la posicio ́n del archivo inmediatamente posterior a la u ́ltima posicio ́n le ́ıda por un llamado a read.*/
 
 int cr_read(crFILE * file_desc, void* buffer, int nbytes){
-	FILE * f = fopen(disk_path, "r");
+	// FILE * f = fopen(disk_path, "r");
 
-	// FINDING FILE SIZE
-	unsigned char * size = malloc(4*sizeof(unsigned char));
-	fseek(f, 2048*file_desc->block, SEEK_SET);
-	fread(size, 1, 4, f);
-	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
+	// // FINDING FILE SIZE
+	// unsigned char * size = malloc(4*sizeof(unsigned char));
+	// fseek(f, 2048*file_desc->block, SEEK_SET);
+	// fread(size, 1, 4, f);
+	// int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
 
-	// FINDING NUMBER OF HARDLINKS
-	unsigned char hardlinks[4];
-	fseek(f, 2048*file_desc->block + 4, SEEK_SET);
-	fread(hardlinks, 1, 4, f);
-	int num_hardlinks = (int)hardlinks[0]*16777216 + (int)hardlinks[1] * 65536 + (int)hardlinks[2] * 256 + (int)hardlinks[3];
+	// // FINDING NUMBER OF HARDLINKS
+	// unsigned char hardlinks[4];
+	// fseek(f, 2048*file_desc->block + 4, SEEK_SET);
+	// fread(hardlinks, 1, 4, f);
+	// int num_hardlinks = (int)hardlinks[0]*16777216 + (int)hardlinks[1] * 65536 + (int)hardlinks[2] * 256 + (int)hardlinks[3];
 
-	// HOW MANY BYTES TO READ
-	if (nbytes > file_size) {
-		nbytes = file_size;
-	}
+	// // HOW MANY BYTES TO READ
+	// if (nbytes > file_size) {
+	// 	nbytes = file_size;
+	// }
 
-	int num_blocks =  ceil(nbytes/2048.0);
-	unsigned char * punteros = malloc(4*num_blocks*sizeof(unsigned char));
-	unsigned char * buffer1 = malloc(2048*sizeof(unsigned char));
-	int to_read = 2048;
+	// int num_blocks =  ceil(nbytes/2048.0);
+	// unsigned char * punteros = malloc(4*num_blocks*sizeof(unsigned char));
+	// unsigned char * buffer1 = malloc(2048*sizeof(unsigned char));
+	// int to_read = 2048;
 
 
-	for(int i = 0;i<num_blocks;i++){
-		if (i == num_blocks - 1){
-			to_read = nbytes - 2048*i;
-		}
+	// for(int i = 0;i<num_blocks;i++){
+	// 	if (i == num_blocks - 1){
+	// 		to_read = nbytes - 2048*i;
+	// 	}
 
-		fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
-		fread(punteros, 1, 4, f);
-		int offset = (int)punteros[2]* 256 + (int)punteros[3];
-		printf("read from block %d\n", offset);
-		fseek(f, 2048*offset, SEEK_SET);
-		fread(buffer1, 1, to_read, f);
-		printf("DATA IN BLOCK: %s\n", buffer1);
-	}
+	// 	fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
+	// 	fread(punteros, 1, 4, f);
+	// 	int offset = (int)punteros[2]* 256 + (int)punteros[3];
+	// 	printf("read from block %d\n", offset);
+	// 	fseek(f, 2048*offset, SEEK_SET);
+	// 	fread(buffer1, 1, to_read, f);
+	// 	printf("DATA IN BLOCK: %s\n", buffer1);
+	// }
 
-	free(punteros);
-	free(buffer1);
-	fclose(f);
-	return nbytes;
+	// free(punteros);
+	// free(buffer1);
+	// fclose(f);
+	// return nbytes;
 }
 
 /*
@@ -453,65 +453,65 @@ porque no pudo seguir escribiendo, ya sea porque el disco se lleno ́ o porque e
 este nu ́mero puede ser menor a nbytes (incluso 0).*/
 
 int cr_write(crFILE* file_desc, void* buffer, int nbytes){
-	FILE * f = fopen(disk_path, "r+b");
+	// FILE * f = fopen(disk_path, "r+b");
 
-	// FINDING FILE SIZE
-	unsigned char * size = malloc(4*sizeof(unsigned char));
-	fseek(f, 2048 * file_desc->block, SEEK_SET);
-	fread(size, 1, 4, f);
-	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3] ;
-	printf("FILE SIZE: %d\n", file_size);
+	// // FINDING FILE SIZE
+	// unsigned char * size = malloc(4*sizeof(unsigned char));
+	// fseek(f, 2048 * file_desc->block, SEEK_SET);
+	// fread(size, 1, 4, f);
+	// int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3] ;
+	// printf("FILE SIZE: %d\n", file_size);
 
-	// HOW MANY BYTES TO WRITE IN TOTAL
-	if (nbytes > 500*2048) {
-		nbytes = 500*2048;
-	}
+	// // HOW MANY BYTES TO WRITE IN TOTAL
+	// if (nbytes > 500*2048) {
+	// 	nbytes = 500*2048;
+	// }
 
-	// WHERE TO START AND HOW MANY BLOCKS TO WRITE TO
-	int blocks_used = ceil(file_size/2048.0);
-	int num_blocks = ceil(nbytes/2048.0);
+	// // WHERE TO START AND HOW MANY BLOCKS TO WRITE TO
+	// int blocks_used = ceil(file_size/2048.0);
+	// int num_blocks = ceil(nbytes/2048.0);
 
-	// agregar x bloques de datos al bloque indice
-	int i;
-	if(num_blocks>blocks_used){
-		for (i = 0; i<(num_blocks-blocks_used);i++){
-			blockIndex * block_index = find_empty_block();
-			fseek(f, 2048*file_desc->block + 8 + (i+blocks_used+1)*4, SEEK_SET);
-			char new_block[4] = {0, 0, (block_index->block_number>>8) & 0xFF, (block_index->block_number) & 0xFF};
-			fwrite(new_block, 1, 4, f);
-		}
-	}
+	// // agregar x bloques de datos al bloque indice
+	// int i;
+	// if(num_blocks>blocks_used){
+	// 	for (i = 0; i<(num_blocks-blocks_used);i++){
+	// 		blockIndex * block_index = find_empty_block();
+	// 		fseek(f, 2048*file_desc->block + 8 + (i+blocks_used+1)*4, SEEK_SET);
+	// 		char new_block[4] = {0, 0, (block_index->block_number>>8) & 0xFF, (block_index->block_number) & 0xFF};
+	// 		fwrite(new_block, 1, 4, f);
+	// 	}
+	// }
 
-	//Para cada bloque - escribe datos desde el buffer
+	// //Para cada bloque - escribe datos desde el buffer
 
-	unsigned char * punteros = malloc(4*sizeof(unsigned char));
-	int to_write = 2048;
+	// unsigned char * punteros = malloc(4*sizeof(unsigned char));
+	// int to_write = 2048;
 
-	for (i = 0; i < num_blocks; i++) {
-		// Encontrar bloque:
+	// for (i = 0; i < num_blocks; i++) {
+	// 	// Encontrar bloque:
 
-		fseek(f, 2048*file_desc->block + 8 + i*4, SEEK_SET);
-		fread(punteros, 1, 4, f); // READING PUNTERO
-		int offset = (int)punteros[2] * 256 + (int)punteros[3];
-		printf("INDEX: %d\n", offset);
+	// 	fseek(f, 2048*file_desc->block + 8 + i*4, SEEK_SET);
+	// 	fread(punteros, 1, 4, f); // READING PUNTERO
+	// 	int offset = (int)punteros[2] * 256 + (int)punteros[3];
+	// 	printf("INDEX: %d\n", offset);
 
-		if(i +1 == num_blocks){to_write = nbytes - i*2048;}
+	// 	if(i +1 == num_blocks){to_write = nbytes - i*2048;}
 
-		// Escribir datos al bloque
-		fseek(f, 2048*offset, SEEK_SET);
-		fwrite(&buffer[i*2048], 1,to_write, f);
-	}
+	// 	// Escribir datos al bloque
+	// 	fseek(f, 2048*offset, SEEK_SET);
+	// 	fwrite(&buffer[i*2048], 1,to_write, f);
+	// }
 
-	// Actualiza tamaño del archivo
+	// // Actualiza tamaño del archivo
 
-	fseek(f, file_desc->block*2048, SEEK_SET);
-	char new_size[4] = {(nbytes>>24) & 0xFF,(nbytes>>16) & 0xFF,(nbytes>>8) & 0xFF, (nbytes) & 0xFF};
-	fwrite(new_size, 1, 4, f);
-	fclose(f);
+	// fseek(f, file_desc->block*2048, SEEK_SET);
+	// char new_size[4] = {(nbytes>>24) & 0xFF,(nbytes>>16) & 0xFF,(nbytes>>8) & 0xFF, (nbytes) & 0xFF};
+	// fwrite(new_size, 1, 4, f);
+	// fclose(f);
 
-	free(size);
-	free(punteros);
-	return nbytes;
+	// free(size);
+	// free(punteros);
+	// return nbytes;
 }
 
 /*
@@ -529,8 +529,6 @@ restante es igual a cero.*/
 
 int cr_rm(char* path){
 	int existe = move_index(path, &puntero);
-	printf("\npase el move index");
-
 	FILE* file = fopen(disk_path, "r+b");
 	char * dir = dirfinder(path);
 	char * filename = basefinder(path);
@@ -539,15 +537,12 @@ int cr_rm(char* path){
 	// Invalidar entrada en el directorio 
 	int directorio = move_index(dir, &puntero);
 	int bloque_directorio = puntero.block;
-
-	//leer si es valida la entrada
 	unsigned char * buffer_valido = malloc(sizeof(unsigned char));
 	fseek(file, bloque_directorio * 2048 + puntero.entry * 32 , SEEK_SET);
 	fread(buffer_valido, 1, 1, file);
 
 	if (buffer_valido[0] == (unsigned char)4){
 		buffer_valido[0] = (unsigned char)1;
-		printf( "estamos");
 		// DESCOMENTAR !!!
 		// unsigned char new_block[1] = {(buffer_valido[0]) & 0xFF};
 		// fseek(file, bloque_directorio * 2048 + puntero.entry * 32, SEEK_SET);
@@ -555,10 +550,10 @@ int cr_rm(char* path){
 
 	} else {
 		printf( "Estamos leyendo mal la entrada del directorio del remove\n");
+		free(buffer_valido);
 		return 0;
 	}
 	
-
 	// Disminuir el contador de hardlinks en el archivo
 	unsigned char * buffer = malloc(4*sizeof(unsigned char));
 	fseek(file, 2048 * bloque_archivo + 4, SEEK_SET);
@@ -571,20 +566,45 @@ int cr_rm(char* path){
 	// fseek(file, 2048*bloque_archivo + 4, SEEK_SET);
 	// fwrite(new_block, 1, 4, file);
 
-
 	// Invalidar bloques si hardlinks = 0 en bitmap
-
 	if (hardlinks_counter == 0){
 		printf("\nSe borra el ultimo hardlink\n");
 		// leer los punteros de direccionamiento directo
 		unsigned char * buffer = malloc(2000*sizeof(unsigned char));
 		fseek(file, 2048 * bloque_archivo + 8, SEEK_SET);
-		fread(buffer, 4, 500, file);
+		fread(buffer, 1, 2000, file);
+		unsigned int block_number;
+		unsigned int block_byte_number;
+		unsigned int block_byte_offset;
 		for (int i = 0 ; i < 500; i++){
-			// hacer move para conocer el bloque del puntero, usar funcion que invalide el bloque en el bitmap	
-		}
+			block_number = (unsigned int)buffer[4*i+2] * 256 + (unsigned int)buffer[4*i+3];
+			if (block_number == 0) {
+				printf("\nSe revisaron todos los punteros\n");
+				break;
+			}
 
-		// hacer lo mismo con los ultimos 10 punteros (40 bytes)
+			unsigned char * bitmap_byte = malloc(sizeof(unsigned char));
+			block_byte_number = block_number/8;
+			block_byte_offset = block_number%8;
+			fseek(file, 2048 + block_byte_number, SEEK_SET);
+			fread(bitmap_byte, 1, 1, file);
+
+			for(int j = 0; j<8; j++){
+				// bit[j] = (buffer[k] & (mask << j)) != 0;
+
+				// if (byte[j] == '0') {
+				// 	encontrado = 1;
+				// 	block->block_number = block_num;
+				// 	block->byte_number = k;
+				// 	block->bit_number = j;
+
+				// 	memcpy(block->new_byte, byte, 8);
+				// 	block->new_byte[j] = '1';
+				// 	break;
+				// }
+			}
+
+		}
 
 	}
 
