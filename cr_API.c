@@ -593,7 +593,7 @@ int cr_hardlink(char* orig, char* dest){
 				unsigned char aux[4];
 				unsigned char * hl_counter_char = itoa(hl_counter, aux, 10);
 				// review Cuando escribo, debo escribir el numero como int o char?
-				fwrite(hl_counter, 1, 4,file);
+				fwrite(hl_counter_char, 1, 4,file);
 				free(buffer_archivo);
 				free(buffer);
 				fclose(file);
