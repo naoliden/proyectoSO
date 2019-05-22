@@ -1,24 +1,32 @@
 #include "cr_API.h"
 
-#include "library.h"
 
-int main() {
-    cr_mount("./simdiskfilled.bin");
-    //cr_mkdir("HALLO.txt");
-    /*
-    cr_ls("");
-    cr_bitmap();
-    void * write = malloc(2000 * sizeof(unsigned int));
-    char str[] = "HOLA GERMY!";
-    strcpy(write, str);
-    crFILE * germy = cr_open("germy.txt", 'r');
-    cr_write(germy, write, sizeof(str));
-    void * output = malloc(400 * sizeof(unsigned int));
-    cr_read(germy, output, 400);
-    free(output);
-    */
+int main(int argc, char *argv[]) {
+  if (argc == 2){
+    cr_mount(argv[1]);
+  }
+  else{
+    cr_mount("./simdiskfilled-old.bin");
+  }
+  cr_ls("memes");
+  cr_mkdir("memes/mari");
+  cr_ls("memes");
 
-    crFILE * new = cr_open("HELLO_WORLD.txt", 'w');
+/*
+void * write = malloc(2000 * sizeof(unsigned int));
+char str[] = "HOLA GERMY!";
+strcpy(write, str);
 
-    return 0;
+crFILE * germy = cr_open("germy.txt", 'r');
+printf("OPEN OK\n");
+cr_write(germy, write, sizeof(str));
+printf("WRITE OK\n");
+void * output = malloc(400 * sizeof(unsigned int));
+cr_read(germy, output, 400);
+printf("READ OK\n");
+free(output);
+*/
+
+
+  return 0;
 }
