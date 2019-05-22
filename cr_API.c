@@ -509,6 +509,7 @@ Función para cerrar archivos. Cierra el archivo indicado por file desc. Debe ga
 retorna, el archivo se encuentra actualizado en disco.*/
 
 int cr_close(crFILE* file_desc){
+	free(file_desc);
 	return 0;
 }
 
