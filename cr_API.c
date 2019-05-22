@@ -13,53 +13,54 @@ unsigned int offset;
 crFILE puntero;
 
 int move_index(char* path, crFILE* p){
-  int counter = 0;
-  int num_folders = 0;
-  char * original_path = path;
-  int * pos_slash = malloc(10*sizeof(int));
 
-  FILE * f = fopen(disk_path, "r");
-  int end = 1;
-  while(end==1){
-    if(path[0] == '/'){
-      pos_slash[num_folders] = counter;
-      printf(" HALLO: %d\n", pos_slash[num_folders]);
-      num_folders++;
-    }
-    if(!*path++){
-      if(num_folders>0 && !(pos_slash[num_folders-1] == counter-1)){
-        pos_slash[num_folders] = counter;
-        printf(" HALLO: %d\n", pos_slash[num_folders]);
-        num_folders++;
-      }
+	int counter = 0;
+	int num_folders = 0;
+	char * original_path = path;
+	int * pos_slash = malloc(10*sizeof(int));
+
+	FILE * f = fopen(disk_path, "rb");
+	int end = 1;
+	while(end==1){
+		if(path[0] == '/'){
+			pos_slash[num_folders] = counter;
+			printf(" HALLO: %d\n", pos_slash[num_folders]);
+			num_folders++;
+		}
+		if(!*path++){
+			if(num_folders>0 && !(pos_slash[num_folders-1] == counter-1)){
+			pos_slash[num_folders] = counter;
+			printf(" HALLO: %d\n", pos_slash[num_folders]);
+			num_folders++;
+			}
 			else if (num_folders == 0){
 				pos_slash[num_folders] = counter;
 				printf(" HALLO: %d\n", pos_slash[num_folders]);
 				num_folders ++;
 			}
-      end = 0;
-    }
-    counter ++;
-  }
+			end = 0;
+		}
+		counter ++;
+  	}
 
-  unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
-  p->block = 0;
-  for(int j = 0; j<num_folders;j++){
+	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
+	p->block = 0;
+	for(int j = 0; j<num_folders;j++){
 
-    int beginning = 0;
-    if(j > 0){beginning = pos_slash[j-1]+1;}
-    else if (j == 0 && original_path[0] == '/'){beginning = 1;}
+		int beginning = 0;
+		if(j > 0){beginning = pos_slash[j-1]+1;}
+		else if (j == 0 && original_path[0] == '/'){beginning = 1;}
 
-    char * folder = malloc((pos_slash[j]-beginning)*sizeof(char));
-    memcpy(folder, &original_path[beginning], pos_slash[j]-beginning);
+		char * folder = malloc((pos_slash[j]-beginning)*sizeof(char));
+		memcpy(folder, &original_path[beginning], pos_slash[j]-beginning);
 
-    for(int i = 0; i < 64; i++ ) {
-      p->offset = 32*i;
+		for(int i = 0; i < 64; i++ ) {
+			p->offset = 32*i;
 			fseek(f, 2048*p->block + 32 * i, SEEK_SET );
 			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
-      printf("FOLDER IN FILE: %s\n", folder_name);
+			printf("FOLDER IN FILE: %s\n", folder_name);
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido\n");
 				free(buffer);
@@ -67,9 +68,10 @@ int move_index(char* path, crFILE* p){
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
-        	p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
-          p->offset = p->offset + 28;
-          printf("BLOCK: %d\n", p->block);
+					p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
+					p->offset = p->offset + 28;
+					p->entry = i;
+					printf("BLOCK: %d\n", p->block);
 					break;
 				}
 			}
@@ -79,7 +81,7 @@ int move_index(char* path, crFILE* p){
 				return 0;
 			}
 		}
-  }
+  	}
 	return 1;
 }
 
@@ -526,6 +528,60 @@ Los bloques que estaban siendo usados por el archivo deben quedar libres si, y s
 restante es igual a cero.*/
 
 int cr_rm(char* path){
+	int existe = move_index(path, &puntero);
+	printf("\npase el move index");
+
+	FILE* file = fopen(disk_path, "r+b");
+	char * dir = dirfinder(path);
+	char * filename = basefinder(path);
+	int bloque_archivo = puntero.block;
+
+	// Invalidar entrada en el directorio 
+	int directorio = move_index(dir, &puntero);
+	int bloque_directorio = puntero.block;
+
+	//leer si es valida la entrada
+	unsigned char * buffer_valido = malloc(sizeof(unsigned char));
+	fseek(file, bloque_directorio * 2048 + puntero.entry * 32 , SEEK_SET);
+	fread(buffer_valido, 1, 1, file);
+
+	if (buffer_valido[0] == (unsigned char)4){
+		buffer_valido[0] = (unsigned char)1;
+		printf( "estamos");
+		// DESCOMENTAR !!!
+		// unsigned char new_block[1] = {(buffer_valido[0]) & 0xFF};
+		// fseek(file, bloque_directorio * 2048 + puntero.entry * 32, SEEK_SET);
+		// fwrite(new_block, 1, 1, file);
+
+	} else {
+		printf( "Estamos leyendo mal la entrada del directorio del remove\n");
+		return 0;
+	}
+	
+
+	// Disminuir el contador de hardlinks en el archivo
+	unsigned char * buffer = malloc(4*sizeof(unsigned char));
+	fseek(file, 2048 * bloque_archivo + 4, SEEK_SET);
+	fread(buffer, 1, 4, file);
+	int hardlinks_counter = (int)buffer[0] * 16777216 + (int)buffer[1] * 65536 + (int)buffer[2] * 256 + (int)buffer[3];
+	printf("\n EL buffer es: %d", hardlinks_counter);
+	// hardlinks_counter--;
+	// char new_block[4] = {(hardlinks_counter>>24) & 0xFF, (hardlinks_counter>>16) & 0xFF, (hardlinks_counter>>8) & 0xFF, (hardlinks_counter) & 0xFF};
+	// fseek(file, 2048*bloque_archivo + 4, SEEK_SET);
+	// fwrite(new_block, 1, 4, file);
+
+
+	// Invalidar bloques si hardlinks = 0 en bitmap
+
+	if (hardlinks_counter == 0){
+		printf("\nSe borra el ultimo hardlink\n");
+		fseek(file, 2048 * bloque_archivo + 8, SEEK_SET);
+
+	}
+
+
+	free(buffer);
+	fclose(file);
 	return 0;
 }
 
