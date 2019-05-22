@@ -60,7 +60,7 @@ int move_index(char* path, crFILE* p){
 
 					char block_number_str[4];
 					memcpy(block_number_str, &buffer[28], 4);
-					p->block = (unsigned int)atoi(block_number_str);
+					p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
 					p->entry = i;
 					folder = strtok(NULL, "/");
 					level++;
@@ -401,24 +401,17 @@ Esto es importante si nbytes es mayor a la cantidad de Byte restantes en el arch
 desde la posicio ́n del archivo inmediatamente posterior a la u ́ltima posicio ́n le ́ıda por un llamado a read.*/
 
 int cr_read(crFILE * file_desc, void* buffer, int nbytes){
-	// review, "rb"?
 	FILE * f = fopen(disk_path, "r");
-
-	// FINDING INDEX block
-	unsigned char index_block[4];
-	fseek(f, file_desc->offset, SEEK_SET);
-	fread(index_block, 1, 4, f);
-	int index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
 
 	// FINDING FILE SIZE
 	unsigned char * size = malloc(4*sizeof(unsigned char));
-	fseek(f, 2048*index_block_num, SEEK_SET);
+	fseek(f, 2048*file_desc->block, SEEK_SET);
 	fread(size, 1, 4, f);
 	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
 
 	// FINDING NUMBER OF HARDLINKS
 	unsigned char hardlinks[4];
-	fseek(f, 2048*index_block_num + 4, SEEK_SET);
+	fseek(f, 2048*file_desc->block + 4, SEEK_SET);
 	fread(hardlinks, 1, 4, f);
 	int num_hardlinks = (int)hardlinks[0]*16777216 + (int)hardlinks[1] * 65536 + (int)hardlinks[2] * 256 + (int)hardlinks[3];
 
@@ -432,16 +425,19 @@ int cr_read(crFILE * file_desc, void* buffer, int nbytes){
 	unsigned char * buffer1 = malloc(2048*sizeof(unsigned char));
 	int to_read = 2048;
 
+
 	for(int i = 0;i<num_blocks;i++){
 		if (i == num_blocks - 1){
 			to_read = nbytes - 2048*i;
 		}
-		fseek(f, index_block_num*2048 + 8 + i*4, SEEK_SET);
-		fread(punteros, 1, 4, f);
-		int offset = (int)punteros[2] * 256 + (int)punteros[3];
 
+		fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
+		fread(punteros, 1, 4, f);
+		int offset = (int)punteros[2]* 256 + (int)punteros[3];
+		printf("read from block %d\n", offset);
 		fseek(f, 2048*offset, SEEK_SET);
 		fread(buffer1, 1, to_read, f);
+		printf("DATA IN BLOCK: %s\n", buffer1);
 	}
 
 	free(punteros);
