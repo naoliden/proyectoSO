@@ -23,18 +23,15 @@ int move_index(char* path, crFILE* p){
   while(end==1){
     if(path[0] == '/'){
       pos_slash[num_folders] = counter;
-      printf(" HALLO: %d\n", pos_slash[num_folders]);
       num_folders++;
     }
     if(!*path++){
       if(num_folders>0 && !(pos_slash[num_folders-1] == counter-1)){
         pos_slash[num_folders] = counter;
-        printf(" HALLO: %d\n", pos_slash[num_folders]);
         num_folders++;
       }
 			else if (num_folders == 0){
 				pos_slash[num_folders] = counter;
-				printf(" HALLO: %d\n", pos_slash[num_folders]);
 				num_folders ++;
 			}
       end = 0;
@@ -59,7 +56,7 @@ int move_index(char* path, crFILE* p){
 			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
-      printf("FOLDER IN FILE: %s\n", folder_name);
+      //printf("FOLDER IN FILE: %s\n", folder_name);
 			if (buffer[0] == (unsigned char)1 ){
 				printf("Path invalido\n");
 				free(buffer);
@@ -69,7 +66,6 @@ int move_index(char* path, crFILE* p){
 				if (strcmp(folder, folder_name) == 0){
         	p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
           p->offset = p->offset + 28;
-          printf("BLOCK: %d\n", p->block);
 					break;
 				}
 			}
@@ -102,7 +98,7 @@ char* basefinder(char* path) {
 
 blockIndex* find_empty_block(){
 	int encontrado = 0;
-	unsigned int block_num = 0;
+	unsigned int block_num = 4;
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 2048*4);
 	unsigned char mask = 1;
 	blockIndex* block = malloc(sizeof(blockIndex));
@@ -112,15 +108,15 @@ blockIndex* find_empty_block(){
 	fread(buffer, 1, 2048*4, file);
 
 	unsigned char * byte = malloc(sizeof(char) * 8);
-	for (int k = 0; k < 2048*4; k++) {
+	for (int k = 5; k < 2048*4; k++) {
 		for(int j = 0; j<8; j++){
 
 			block_num++;
 			byte[j] = (buffer[k] & (mask << j)) != 0;
-
-			if (byte[j] == '0') {
+			if (byte[j] == 0) {
 
 				encontrado = 1;
+
 				block->block_number = block_num;
 				block->byte_number = k;
 				block->bit_number = j;
@@ -149,8 +145,8 @@ void change_bitmap(blockIndex* block){
 
 	unsigned int offset;
 
-	FILE* file = fopen(disk_path, "w+b");
-	offset = 2048 * (block->block_number + 1) + block->byte_number;
+	FILE* file = fopen(disk_path, "r+b");
+	offset = 2048 * (block->block_number) + block->byte_number;
 
 	fseek(file, offset , SEEK_SET);
 	fwrite(block->new_byte, 1, 1, file);
@@ -242,37 +238,24 @@ de todos los archivos y directorios contenidos en el directorio indicado por pat
 
 // FIXME, creo que no funciona bien, testearla.
 void cr_ls(char* path){
-	FILE * f = fopen(disk_path, "rw");
-	char * folder = strtok(path, "/");
+	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 	move_index(path, &puntero);
-	printf("OFFSET: %d\n", puntero.offset);
-	unsigned char index_block[4];
-
-	int index_block_num = 0;
-	if(puntero.offset > 0){
-		fseek(f, puntero.offset, SEEK_SET);
-		fread(index_block, 1, 4, f);
-		index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
-	}
 
 	for( int i = 0; i < 64; i++ ) {
 		fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, f);
-		if ( buffer[0] == (unsigned char)1 ) {
-			printf( "Entrada invalida\n");
-
-		} else if (buffer[0] == (unsigned char)2 ) {
-
+		if (buffer[0] == (unsigned char)2 ) {
 			printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-
 		} else if (buffer[0] == (unsigned char)4){
 			printf( "FILE %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-
-		} else {
-			printf( "Entrada invalida\n");
 		}
 	}
+
+
+
+
+
 	free(buffer);
 	fclose(f);
 }
@@ -286,9 +269,13 @@ int cr_mkdir(char *foldername){
 
 	char* path_to_dir = dirfinder(foldername);
 	char* new_dir = basefinder(foldername);
+	printf("PATH TO DIR: %s\n", path_to_dir);
+	printf("NEW DIR: %s\n", new_dir);
 
 	blockIndex* new_block = find_empty_block();
-	// move_index(path_to_dir, &puntero);
+	printf("NEW BLOCK LOCATION: %d\n", new_block->block_number );
+	move_index(path_to_dir, &puntero);
+	printf("PUNTERO BLOCK: %d\n", puntero.block);
 
 	FILE * f = fopen(disk_path, "r+b");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
@@ -305,38 +292,43 @@ int cr_mkdir(char *foldername){
 
 	for( int j = 0; j < 64; j++){
 
-		fseek(f, 32 * j, SEEK_SET);
-		fread(buffer, sizeof( unsigned char ), 32, f);
-
+		fseek(f, 2048*puntero.block + 32 * j, 0);
+		fread(buffer, 1, 32, f);
+		printf("BUFFER IN DIR: %s\n", &buffer[0]);
 		if ( buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4) {
 			printf( "\nCreando directorio %s en %s\n", new_dir, path_to_dir);
 
 			// puntero es solo el numero de bloque
 			unsigned int int_pointer = new_block->block_number;
-			unsigned char aux_pointer[4];
-			unsigned char* pointer = itoa(int_pointer, aux_pointer, 10);
-			// char * ceros = '00';
-			printf("HEI ER DU HER: 1\n");
+			unsigned char aux_pointer[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((int_pointer)>>8) & 0xFF, (unsigned char) (int_pointer) & 0xFF};
+
+			//unsigned char * pointer = itoa(int_pointer, aux_pointer, 10);
+			printf("HEI ER DU HER: %s \n", aux_pointer);
+
 			buffer[0] = '2';
-
-
+			unsigned char * number = malloc(2*sizeof(unsigned char));
+			number[0] = (unsigned char)2;
 			// review guardar el puntero como unsigned int, germy no sabe si fuciona como char
 			memcpy(&buffer[1], new_dir, 27);
 			printf("HEI ER DU HER: 2\n");
 			// Se supone que los strings terminan en cero, asi el compilador los indentifica.
 			buffer[27] = 0;
 
-			memcpy(&buffer[28], pointer, 4);
+			memcpy(&buffer[28], aux_pointer, 4);
 			printf("HEI ER DU HER: 3\n");
 
-			fseek(f, 32 * j, SEEK_SET);
+			fseek(f, puntero.block*2048 + 32 * j, SEEK_SET);
+			fwrite(number, 1,1, f);
+			fwrite(new_dir, 1, 27, f);
+			fwrite(aux_pointer, 1, 4, f);
 			printf("HEI ER DU HER: 4\n");
 
-			fwrite(buffer, 1, 32, f);
-			printf("HEI ER DU HER: 5n");
-
+			//fwrite(buffer, 1, 32, f);
+			printf("HEI ER DU HER: 5\n");
+			printf("BUFFER: %s\n", buffer);
 			change_bitmap(new_block);
 			printf("HEI ER DU HER: 6\n");
+			fclose(f);
 			return 1;
 		}
 	}

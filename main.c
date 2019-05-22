@@ -8,9 +8,12 @@ int main(int argc, char *argv[]) {
   else{
     cr_mount("./simdiskfilled-old.bin");
   }
+  //cr_bitmap();
   cr_ls("memes");
-  cr_mkdir("memes/mari");
-  cr_ls("memes");
+  //printf("MKDIR\n");
+  //cr_mkdir("memes/mari");
+  //printf("LS ANDRE\n");
+  //cr_ls("memes");
 
 /*
 void * write = malloc(2000 * sizeof(unsigned int));
