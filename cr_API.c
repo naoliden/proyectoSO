@@ -526,6 +526,184 @@ Los bloques que estaban siendo usados por el archivo deben quedar libres si, y s
 restante es igual a cero.*/
 
 int cr_rm(char* path){
+	int existe = move_index(path, &puntero);
+	FILE* file = fopen(disk_path, "r+b");
+	char * dir = dirfinder(path);
+	char * filename = basefinder(path);
+	int bloque_archivo = puntero.block;
+
+	// Leer el byte de validez 
+	int directorio = move_index(dir, &puntero);
+	int bloque_directorio = puntero.block;
+	unsigned char * buffer_valido = malloc(sizeof(unsigned char));
+	fseek(file, bloque_directorio * 2048 + puntero.entry * 32 , SEEK_SET);
+	fread(buffer_valido, 1, 1, file);
+
+	// Invalidar entrada en el directorio 
+	if (buffer_valido[0] == (unsigned char)4){
+		unsigned char * invalid_byte = malloc(sizeof(unsigned char));
+		invalid_byte[0] = (unsigned int)1;
+		fseek(file, bloque_directorio * 2048 + puntero.entry * 32, SEEK_SET);
+		fwrite(invalid_byte, 1, 1, file);
+		free(invalid_byte);
+	} else {
+		printf( "La entrada no corresponde a un archivo valido\n");
+		free(buffer_valido);
+		return 0;
+	}
+	
+	// Disminuir el contador de hardlinks en el archivo
+	unsigned char * buffer = malloc(4*sizeof(unsigned char));
+	fseek(file, 2048 * bloque_archivo + 4, SEEK_SET);
+	fread(buffer, 1, 4, file);
+	int hardlinks_counter = (int)buffer[0] * 16777216 + (int)buffer[1] * 65536 + (int)buffer[2] * 256 + (int)buffer[3];
+	printf("\nNumero de hardlinks: %d\n", hardlinks_counter);
+	hardlinks_counter--;
+	char new_block[4] = {(hardlinks_counter>>24) & 0xFF, (hardlinks_counter>>16) & 0xFF, (hardlinks_counter>>8) & 0xFF, (hardlinks_counter) & 0xFF};
+	fseek(file, 2048*bloque_archivo + 4, SEEK_SET);
+	fwrite(new_block, 1, 4, file);
+	printf("\n Nuevo nro de hardlinks: %d", hardlinks_counter);
+
+	// Invalidar bloques de datos si no quedan hardlinks (se puede cambiar el == para entrar al if y testear)
+	if (hardlinks_counter == 0){
+		printf("\nSe borraran los bloques de datos\n");
+		unsigned char * buffer = malloc(2000*sizeof(unsigned char));
+		unsigned char * bitmap_byte = malloc(sizeof(unsigned char));
+		unsigned char mask = 1;
+		unsigned int block_number;
+		unsigned int block_byte_number;
+		unsigned int block_byte_offset;
+		unsigned char bits[8];
+
+		// Leer los 500 punteros de direccionamiento directo
+		fseek(file, 2048 * bloque_archivo + 8, SEEK_SET);
+		fread(buffer, 1, 2000, file);		
+		for (int i = 0 ; i < 500; i++){
+			// Leer el numero de bloque al que apunta el puntero
+			block_number = (unsigned int)buffer[4*i+2] * 256 + (unsigned int)buffer[4*i+3];
+			if (block_number == 0) {
+				printf("\nSe revisaron todos los punteros\n");
+				break;
+			}
+
+			// Leer el BYTE del bitmap que contiene el BIT correspondiente al bloque
+			block_byte_number = block_number / 8;
+			block_byte_offset = block_number % 8;
+			fseek(file, 2048 + block_byte_number, SEEK_SET);
+			fread(bitmap_byte, 1, 1, file);
+			printf("El offset es: %u \n", block_byte_offset);
+			
+			// Transformar el BYTE a BIT
+			bits[7] = (unsigned char) (bitmap_byte[0] & (mask <<0)) != 0;
+			bits[6] = (unsigned char) (bitmap_byte[0] & (mask <<1)) != 0;
+			bits[5] = (unsigned char) (bitmap_byte[0] & (mask <<2)) != 0;
+			bits[4] = (unsigned char) (bitmap_byte[0] & (mask <<3)) != 0;
+			bits[3] = (unsigned char) (bitmap_byte[0] & (mask <<4)) != 0;
+			bits[2] = (unsigned char) (bitmap_byte[0] & (mask <<5)) != 0;
+			bits[1] = (unsigned char) (bitmap_byte[0] & (mask <<6)) != 0;
+			bits[0] = (unsigned char) (bitmap_byte[0] & (mask <<7)) != 0;
+
+			// Imprimir los BITS del BYTE antes de modificarlo
+			for(int j = 0;j<8;j++){
+				printf("%d", bits[j]);
+			}
+			printf("\n");
+
+			// Cambiar el BIT correspondiente a 0 y actualizar el bitmap
+			bits[block_byte_offset] = (unsigned char)0;
+			unsigned char * byte_to_write = malloc(2*sizeof(unsigned char));
+			byte_to_write[0] = (unsigned int)bits[7] * 1 + (unsigned int)bits[6]*2 + (unsigned int)bits[5] * 4 + (unsigned int)bits[4]*8 +(unsigned int)bits[3] * 16 + (unsigned int)bits[2]*32+(unsigned int)bits[1] * 64 + (unsigned int)bits[0]*128;
+			fseek(file, 2048 + block_byte_number, SEEK_SET);
+			fwrite(byte_to_write, 1, 1, file);
+
+			// Checkeo si es que se escribio bien el bitmap: vuelvo a leerlo e imprimo los BITS del BYTE correspondiente
+			// Se puede borrar si quieren
+			fseek(file, 2048 + block_byte_number, SEEK_SET);
+			fread(bitmap_byte, 1, 1, file);
+			bits[7] = (unsigned char) (bitmap_byte[0] & (mask <<0)) != 0;
+			bits[6] = (unsigned char) (bitmap_byte[0] & (mask <<1)) != 0;
+			bits[5] = (unsigned char) (bitmap_byte[0] & (mask <<2)) != 0;
+			bits[4] = (unsigned char) (bitmap_byte[0] & (mask <<3)) != 0;
+			bits[3] = (unsigned char) (bitmap_byte[0] & (mask <<4)) != 0;
+			bits[2] = (unsigned char) (bitmap_byte[0] & (mask <<5)) != 0;
+			bits[1] = (unsigned char) (bitmap_byte[0] & (mask <<6)) != 0;
+			bits[0] = (unsigned char) (bitmap_byte[0] & (mask <<7)) != 0;
+			for(int j = 0;j<8;j++){
+				printf("%d", bits[j]);
+			}
+			printf("\n");
+
+			// Si es que hay 500 punteros, hay direccionamiento indirecto tambien
+			if (i == 499) {
+				fseek(file, 2048 * bloque_archivo + 2008, SEEK_SET);
+				fread(buffer, 1, 40, file);
+				for (int k = 0 ; k < 10; k++){
+					block_number = (unsigned int)buffer[4*k+2] * 256 + (unsigned int)buffer[4*k+3];
+					if (block_number == 0) {
+						printf("\nSe revisaron todos los bloques de punteros indirectos\n");
+						break;
+					}
+
+					// Invalidar el bloque indirecto primero (sin prints de checkeo)				
+					// Leer el BYTE del bitmap que contiene el BIT correspondiente al bloque indirecto
+					block_byte_number = block_number / 8;
+					block_byte_offset = block_number % 8;
+					fseek(file, 2048 + block_byte_number, SEEK_SET);
+					fread(bitmap_byte, 1, 1, file);
+					// Transformar el BYTE a BIT
+					bits[7] = (unsigned char) (bitmap_byte[0] & (mask <<0)) != 0;
+					bits[6] = (unsigned char) (bitmap_byte[0] & (mask <<1)) != 0;
+					bits[5] = (unsigned char) (bitmap_byte[0] & (mask <<2)) != 0;
+					bits[4] = (unsigned char) (bitmap_byte[0] & (mask <<3)) != 0;
+					bits[3] = (unsigned char) (bitmap_byte[0] & (mask <<4)) != 0;
+					bits[2] = (unsigned char) (bitmap_byte[0] & (mask <<5)) != 0;
+					bits[1] = (unsigned char) (bitmap_byte[0] & (mask <<6)) != 0;
+					bits[0] = (unsigned char) (bitmap_byte[0] & (mask <<7)) != 0;
+					// Cambiar el BIT correspondiente a 0 y actualizar el bitmap
+					bits[block_byte_offset] = (unsigned char)0;
+					unsigned char * byte_to_write = malloc(2*sizeof(unsigned char));
+					byte_to_write[0] = (unsigned int)bits[7] * 1 + (unsigned int)bits[6]*2 + (unsigned int)bits[5] * 4 + (unsigned int)bits[4]*8 +(unsigned int)bits[3] * 16 + (unsigned int)bits[2]*32+(unsigned int)bits[1] * 64 + (unsigned int)bits[0]*128;
+					fseek(file, 2048 + block_byte_number, SEEK_SET);
+					fwrite(byte_to_write, 1, 1, file);
+
+					// Ir al bloque indirecto y leer sus punteros
+					unsigned char * indirect_buffer = malloc(2048*sizeof(unsigned char));
+					fseek(file, 2048 * block_number, SEEK_SET);
+					fread(indirect_buffer, 1, 2048, file);
+					for (int g = 0 ; g < 512; g++){
+						block_number = (unsigned int)indirect_buffer[4*g+2] * 256 + (unsigned int)indirect_buffer[4*g+3];
+						if (block_number == 0) {
+							printf("\nSe revisaron todos los punteros indirectos del bloque\n");
+							break;
+						}
+						// Invalidar cada bloque apuntado desde el bloque indirecto (sin prints de checkeo)				
+						// Leer el BYTE del bitmap que contiene el BIT correspondiente al bloque indirecto
+						block_byte_number = block_number / 8;
+						block_byte_offset = block_number % 8;
+						fseek(file, 2048 + block_byte_number, SEEK_SET);
+						fread(bitmap_byte, 1, 1, file);
+						// Transformar el BYTE a BIT
+						bits[7] = (unsigned char) (bitmap_byte[0] & (mask <<0)) != 0;
+						bits[6] = (unsigned char) (bitmap_byte[0] & (mask <<1)) != 0;
+						bits[5] = (unsigned char) (bitmap_byte[0] & (mask <<2)) != 0;
+						bits[4] = (unsigned char) (bitmap_byte[0] & (mask <<3)) != 0;
+						bits[3] = (unsigned char) (bitmap_byte[0] & (mask <<4)) != 0;
+						bits[2] = (unsigned char) (bitmap_byte[0] & (mask <<5)) != 0;
+						bits[1] = (unsigned char) (bitmap_byte[0] & (mask <<6)) != 0;
+						bits[0] = (unsigned char) (bitmap_byte[0] & (mask <<7)) != 0;
+						// Cambiar el BIT correspondiente a 0 y actualizar el bitmap
+						bits[block_byte_offset] = (unsigned char)0;
+						byte_to_write[0] = (unsigned int)bits[7] * 1 + (unsigned int)bits[6]*2 + (unsigned int)bits[5] * 4 + (unsigned int)bits[4]*8 +(unsigned int)bits[3] * 16 + (unsigned int)bits[2]*32+(unsigned int)bits[1] * 64 + (unsigned int)bits[0]*128;
+						fseek(file, 2048 + block_byte_number, SEEK_SET);
+						fwrite(byte_to_write, 1, 1, file);
+					}
+				}
+			}
+		}
+	}
+
+	free(buffer);
+	fclose(file);
 	return 0;
 }
 
