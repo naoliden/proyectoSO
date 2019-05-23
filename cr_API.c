@@ -192,7 +192,6 @@ Establece como variable global la ruta local donde se encuentra el archivo .bin 
 void cr_mount(char* diskname){
 	memset(disk_path, '\0', sizeof(disk_path));
 	strcpy(disk_path, diskname);
-
 }
 
 /*
@@ -339,6 +338,8 @@ crFILE * cr_open(char * path, char mode){
 	int existe = move_index(path, open_file);
 
 	if (existe != 0){
+		open_file->exists = 1;
+		open_file->block = 0;
 		return open_file;
 	}
 	else if (existe == 0 && mode == 'w'){
@@ -373,7 +374,13 @@ crFILE * cr_open(char * path, char mode){
 
 		return open_file;
 	}
-
+	else if (existe == 0 && mode == 'r'){
+		open_file->block = puntero.block;
+		open_file->exists = puntero.exists;
+		open_file->entry = puntero.entry;
+		open_file->offset = puntero.offset;
+		return open_file;
+	}
 	else{
 		printf("ERROR\n");
 		return NULL;
@@ -525,7 +532,7 @@ aumentando la cantidad de referencias al archivo original.*/
 int cr_hardlink(char* orig, char* dest){
 
 	// REVIEW supuesto, char* orig es un archivo y char* dest un directorio.
-
+	// FIXME se crea el hardlink pero no esta bien el puntero al archivo, el hardlink apunta a un archivo vacio
 	int existe = move_index(dest, &puntero);
 	if (existe == 1){
 		printf("Ya existe un hardlink con este nombre en este directorio\n");
