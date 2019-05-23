@@ -6,10 +6,11 @@ int main(int argc, char *argv[]) {
     cr_mount(argv[1]);
   }
   else{
-    cr_mount("./simdiskfilled-old.bin");
+    cr_mount("./simdiskfilled.bin");
   }
-  //cr_bitmap();
-  cr_ls("memes");
+  crFILE * new = cr_open("hello_there.txt", 'w');
+  cr_ls("");
+
   //printf("MKDIR\n");
   //cr_mkdir("memes/mari");
   //printf("LS ANDRE\n");

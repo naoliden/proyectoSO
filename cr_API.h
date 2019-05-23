@@ -11,7 +11,7 @@ typedef struct blockIndex {
 	int block_number;
 	int byte_number;
 	int bit_number;
-	unsigned char new_byte[8];
+	unsigned char new_byte;
 } blockIndex;
 
 
