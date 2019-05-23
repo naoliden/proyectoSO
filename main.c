@@ -8,29 +8,21 @@ int main(int argc, char *argv[]) {
   else{
     cr_mount("./simdiskfilled.bin");
   }
-  crFILE * new = cr_open("hello_there.txt", 'w');
   cr_ls("");
-
-  //printf("MKDIR\n");
-  //cr_mkdir("memes/mari");
-  //printf("LS ANDRE\n");
-  //cr_ls("memes");
-
-/*
-void * write = malloc(2000 * sizeof(unsigned int));
-char str[] = "HOLA GERMY!";
-strcpy(write, str);
-
-crFILE * germy = cr_open("germy.txt", 'r');
-printf("OPEN OK\n");
-cr_write(germy, write, sizeof(str));
-printf("WRITE OK\n");
-void * output = malloc(400 * sizeof(unsigned int));
-cr_read(germy, output, 400);
-printf("READ OK\n");
-cr_close(germy);
-free(output);
-*/
+  printf("\n\n");
+  crFILE* new = cr_open("tralala.txt", 'w');
+  void * write = malloc(2000 * sizeof(unsigned int));
+  char str[] = "HOLA GERMY!";
+  strcpy(write, str);
+  cr_write(new, write, 100);
+  void * read = malloc(2000 * sizeof(unsigned int));
+  cr_read(new, read, 100);
+  //printf("DATA READ: %s\n", read);
+  //cr_load("/Users/annewold/proyectoSO/testo.txt");
+  printf("\n\n");
+  cr_ls("");
+  free(write);
+  free(read);
 
 
   return 0;

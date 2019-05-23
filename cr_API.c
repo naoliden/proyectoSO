@@ -139,12 +139,11 @@ blockIndex* find_empty_block(){
 			break;
 		}
 
-    if(encontrado == 0){
-        printf("El disco es lleno. No hay suficiente espacio");
-        return 0;
-    }
-
 	}
+  if(encontrado == 0){
+      printf("El disco es lleno. No hay suficiente espacio");
+      return 0;
+  }
 	//free(byte);
 	free(buffer);
 	fclose(file);
@@ -252,27 +251,19 @@ de todos los archivos y directorios contenidos en el directorio indicado por pat
 
 // FIXME, creo que no funciona bien, testearla.
 void cr_ls(char* path){
-  char* base = basefinder(path);
-  if(strchr(base, '.'){
-      printf("No se puede imprimir el archivo. Intenta de nuevo con un directorio \n");
-  }
-  else{
-    FILE * f = fopen(disk_path, "rb");
-    unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
-    move_index(path, &puntero);
-
-    for( int i = 0; i < 64; i++ ) {
-      fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
-      fread(buffer, sizeof( unsigned char ), 32, f);
-      if (buffer[0] == (unsigned char)2 ) {
-        printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-      } else if (buffer[0] == (unsigned char)4){
-        printf( "FILE %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-      }
+  FILE * f = fopen(disk_path, "rb");
+  unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
+  move_index(path, &puntero);
+  for( int i = 0; i < 64; i++ ) {
+    fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
+    fread(buffer, sizeof( unsigned char ), 32, f);
+    if (buffer[0] == (unsigned char)2 ) {
+      printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
+    } else if (buffer[0] == (unsigned char)4){
+      printf( "FILE %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
     }
   }
-
-	free(buffer);
+  free(buffer);
 	fclose(f);
 }
 
@@ -356,31 +347,26 @@ crFILE * cr_open(char * path, char mode){
 		return open_file;
 	}
 	else if (existe == 0 && mode == 'w'){
-		crFILE * nuevo_archivo = malloc(sizeof(crFILE));
 		blockIndex* num = find_empty_block();
 
 		unsigned char * archivo_indice = malloc(32*sizeof(unsigned char));
+    unsigned char aux_pointer[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((num->block_number)>>8) & 0xFF, (unsigned char) (num->block_number) & 0xFF};
 
-		unsigned char nombre[27];
-		memcpy(nombre, basefinder(path), 27);
-		unsigned char numero[2];
-		numero[0] = 4;
-		unsigned char new_block[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((num->block_number)>>8) & 0xFF, (unsigned char) (num->block_number) & 0xFF};
-
-		memcpy(&archivo_indice[0], numero, 1);
-		memcpy(&archivo_indice[1], nombre, 27);
-		memcpy(&archivo_indice[27], new_block, 4);
+		archivo_indice[0] = (unsigned char)4;
+		memcpy(&archivo_indice[1], basefinder(path), 27);
+		memcpy(&archivo_indice[28], aux_pointer, 4);
 
 		char * dir = dirfinder(path);
+    if(strcmp(dir, ".") == 0){dir = "";}
 		int directorio = move_index(dir, &puntero);
 		unsigned char * buffer = malloc(32*sizeof(unsigned char));
 
 		for( int j = 0; j < 64; j++){
 			fseek(f, 2048*puntero.block + 32 * j, 0);
 			fread(buffer, 1, 32, f);
-			if ( buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4) {
+			if (buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4) {
 				fseek(f, 2048*puntero.block + 32 * j, 0);
-				fwrite(archivo_indice, 1, 32, f);
+				fwrite(&archivo_indice[0], 1, 32, f);
 				fclose(f);
 			}
 		}
@@ -422,7 +408,6 @@ int cr_read(crFILE * file_desc, void* buffer, int nbytes){
 
 	int num_blocks =  ceil(nbytes/2048.0);
 	unsigned char * punteros = malloc(num_blocks*sizeof(unsigned char));
-	unsigned char * buffer1 = malloc(2049*sizeof(unsigned char));
 	int to_read = 2048;
 
 
@@ -434,14 +419,11 @@ int cr_read(crFILE * file_desc, void* buffer, int nbytes){
 		fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
 		fread(punteros, 1, 4, f);
 		int offset = (int)punteros[2]* 256 + (int)punteros[3];
-		printf("read from block %d\n", offset);
 		fseek(f, 2048*offset, SEEK_SET);
 		fread(buffer, 1, to_read, f);
-		printf("DATA IN BLOCK: %s\n", buffer);
 	}
 
 	free(punteros);
-	free(buffer1);
 	fclose(f);
 	return nbytes;
 }
@@ -461,7 +443,6 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 	fseek(f, 2048 * file_desc->block, SEEK_SET);
 	fread(size, 1, 4, f);
 	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3] ;
-	printf("FILE SIZE: %d\n", file_size);
 
 	// HOW MANY BYTES TO WRITE IN TOTAL
 	if (nbytes > 500*2048) {
@@ -481,7 +462,7 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 	if(num_blocks>blocks_used){
 		for (i = 0; i<(num_blocks-blocks_used);i++){
 			blockIndex * block_index = find_empty_block();
-      if(blockIndex == 0){
+      if(block_index == 0){
           printf("Disco está lleno");
           return 0;
       }
@@ -584,7 +565,6 @@ int cr_hardlink(char* orig, char* dest){
 				// unsigned int de 4 bytes para la cantidad de hardlinks
 
 				unsigned int int_pointer = puntero.block;
-				printf("PUNTERO BLOCK: %d\n", puntero.block);
 				unsigned char mask = 1;
 				//unsigned char aux_pointer[4];
 				//unsigned char * bloque_archivo = itoa(int_pointer, aux_pointer, 10);
@@ -690,15 +670,10 @@ int cr_unload(char* orig, char* dest){
 				strcpy(file_to_read, orig);
 				strcat(file_to_read, "/");
 				strcat(file_to_read, nombre_dir);
-				printf("FILE TO READ: %s\n", file_to_read);
 				crFILE* nuevo = cr_open(file_to_read, 'r');
-				printf("LEVER HER 1\n");
-				printf("FILLOKASJON: %u\n", nuevo->block);
 				cr_read(nuevo, content, file_size);
-				printf("LEVER HER 2\n");
 				FILE * archivo_nuevo = fopen(dir, "r+b");
 				fwrite(content, 1, file_size, archivo_nuevo);
-				printf("LEVER HER 3\n");
 				fclose(archivo_nuevo);
 
 			}
@@ -717,12 +692,17 @@ int cr_load(char* orig){
   char * name = basefinder(orig);
   if(strchr(name, '.')){
     FILE * new_file = fopen(orig, "rb");
+
+    //FINDING FILE SIZE
     fseek(new_file, 0, SEEK_END);
     int size_f = ftell(new_file);
+    // SETTING FILE BACK TO BEGINNING, READING IT AND CLOSING
     fseek(new_file, 0, SEEK_SET);
     unsigned char buffer[size_f];
     fread(buffer, 1, size_f, new_file);
+    fclose(new_file);
 
+    // MAKING NEW FILE AND WRITING CONTENT TO IT
     crFILE* new = cr_open(name, 'w');
     cr_write(new, buffer, size_f);
   }
