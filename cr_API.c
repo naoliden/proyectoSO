@@ -56,10 +56,11 @@ int move_index(char* path, crFILE* p){
 			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
-      //printf("FOLDER IN FILE: %s\n", folder_name);
+        
 			if (buffer[0] == (unsigned char)1 ){
 				free(buffer);
 				fclose(f);
+                
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
@@ -69,6 +70,7 @@ int move_index(char* path, crFILE* p){
 				}
 			}
 			if (i == 63) {
+                printf("Path no existe");
 				free(buffer);
 				fclose(f);
 				return 0;
@@ -136,7 +138,14 @@ blockIndex* find_empty_block(){
 		if (encontrado){
 			break;
 		}
+        
 	}
+    
+    if(encontrado == 0){
+        printf("El disco es lleno. No hay suficiente espacio");
+        return 0;
+    }
+               
 	//free(byte);
 	free(buffer);
 	fclose(file);
@@ -243,19 +252,30 @@ de todos los archivos y directorios contenidos en el directorio indicado por pat
 
 // FIXME, creo que no funciona bien, testearla.
 void cr_ls(char* path){
-	FILE * f = fopen(disk_path, "rb");
-	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
-	move_index(path, &puntero);
-
-	for( int i = 0; i < 64; i++ ) {
-		fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
-		fread(buffer, sizeof( unsigned char ), 32, f);
-		if (buffer[0] == (unsigned char)2 ) {
-			printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-		} else if (buffer[0] == (unsigned char)4){
-			printf( "FILE %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-		}
-	}
+    
+    char* base = basefinder(path);
+    if(strchr(base, '.'){
+        printf("No se puede imprimir el archivo. Intenta de nuevo con un directorio \n");
+    }
+       
+       else{
+           FILE * f = fopen(disk_path, "rb");
+           unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
+           move_index(path, &puntero);
+           
+           for( int i = 0; i < 64; i++ ) {
+               fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
+               fread(buffer, sizeof( unsigned char ), 32, f);
+               if (buffer[0] == (unsigned char)2 ) {
+                   printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
+               } else if (buffer[0] == (unsigned char)4){
+                   printf( "FILE %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
+               }
+           }
+           
+       }
+    
+	
 
 	free(buffer);
 	fclose(f);
@@ -322,7 +342,7 @@ int cr_mkdir(char *foldername){
 		}
 	}
     // ERROR MESSAGE
-	printf( "\nNo hay espacio suficiente en el bloque\n");
+	printf( "\n No hay espacio suficiente en el bloque\n");
 	free(buffer);
 	fclose(f);
 	return 0;
@@ -446,6 +466,7 @@ este nu ́mero puede ser menor a nbytes (incluso 0).*/
 
 int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 	FILE * f = fopen(disk_path, "r+b");
+    int return_value;
 
 	// FINDING FILE SIZE
 	unsigned char * size = malloc(4*sizeof(unsigned char));
@@ -456,7 +477,12 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 	// HOW MANY BYTES TO WRITE IN TOTAL
 	if (nbytes > 500*2048) {
 		nbytes = 500*2048;
+        return_value = 0;
+        
 	}
+    else{
+        return_value = nbytes;
+    }
 
 	// WHERE TO START AND HOW MANY BLOCKS TO WRITE TO
 	int blocks_used = ceil(file_size/2048.0);
@@ -467,6 +493,12 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 	if(num_blocks>blocks_used){
 		for (i = 0; i<(num_blocks-blocks_used);i++){
 			blockIndex * block_index = find_empty_block();
+            
+            if(blockIndex == 0){
+                printf("Disco está lleno");
+                return 0;
+            }
+            
 			fseek(f, 2048*file_desc->block + 8 + (i+blocks_used+1)*4, SEEK_SET);
 			char new_block[4] = {0, 0, (block_index->block_number>>8) & 0xFF, (block_index->block_number) & 0xFF};
 			fwrite(new_block, 1, 4, f);
@@ -500,7 +532,7 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 
 	free(size);
 	free(punteros);
-	return nbytes;
+	return return_value;
 }
 
 /*
