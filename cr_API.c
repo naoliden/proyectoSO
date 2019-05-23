@@ -321,6 +321,7 @@ int cr_mkdir(char *foldername){
 			return 1;
 		}
 	}
+    // ERROR MESSAGE
 	printf( "\nNo hay espacio suficiente en el bloque\n");
 	free(buffer);
 	fclose(f);
@@ -427,10 +428,8 @@ int cr_read(crFILE * file_desc, void* buffer, int nbytes){
 		fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
 		fread(punteros, 1, 4, f);
 		int offset = (int)punteros[2]* 256 + (int)punteros[3];
-		printf("read from block %d\n", offset);
 		fseek(f, 2048*offset, SEEK_SET);
 		fread(buffer, 1, to_read, f);
-		printf("DATA IN BLOCK: %s\n", buffer);
 	}
 
 	free(punteros);
@@ -453,7 +452,6 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 	fseek(f, 2048 * file_desc->block, SEEK_SET);
 	fread(size, 1, 4, f);
 	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3] ;
-	printf("FILE SIZE: %d\n", file_size);
 
 	// HOW MANY BYTES TO WRITE IN TOTAL
 	if (nbytes > 500*2048) {
@@ -486,8 +484,6 @@ int cr_write(crFILE* file_desc, void* buffer, int nbytes){
 		fseek(f, 2048*file_desc->block + 8 + i*4, SEEK_SET);
 		fread(punteros, 1, 4, f); // READING PUNTERO
 		int offset = (int)punteros[2] * 256 + (int)punteros[3];
-		printf("INDEX: %d\n", offset);
-
 		if(i +1 == num_blocks){to_write = nbytes - i*2048;}
 
 		// Escribir datos al bloque
@@ -570,7 +566,6 @@ int cr_hardlink(char* orig, char* dest){
 				// unsigned int de 4 bytes para la cantidad de hardlinks
 
 				unsigned int int_pointer = puntero.block;
-				printf("PUNTERO BLOCK: %d\n", puntero.block);
 				unsigned char mask = 1;
 				//unsigned char aux_pointer[4];
 				//unsigned char * bloque_archivo = itoa(int_pointer, aux_pointer, 10);
@@ -677,15 +672,10 @@ int cr_unload(char* orig, char* dest){
 				strcpy(file_to_read, orig);
 				strcat(file_to_read, "/");
 				strcat(file_to_read, nombre_dir);
-				printf("FILE TO READ: %s\n", file_to_read);
 				crFILE* nuevo = cr_open(file_to_read, 'r');
-				printf("LEVER HER 1\n");
-				printf("FILLOKASJON: %u\n", nuevo->block);
 				cr_read(nuevo, content, file_size);
-				printf("LEVER HER 2\n");
 				FILE * archivo_nuevo = fopen(dir, "r+b");
 				fwrite(content, 1, file_size, archivo_nuevo);
-				printf("LEVER HER 3\n");
 				fclose(archivo_nuevo);
 
 			}
