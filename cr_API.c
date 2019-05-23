@@ -13,29 +13,25 @@ unsigned int offset;
 crFILE puntero;
 
 int move_index(char* path, crFILE* p){
+  int counter = 0;
+  int num_folders = 0;
+  char * original_path = path;
+  int * pos_slash = malloc(10*sizeof(int));
 
-	int counter = 0;
-	int num_folders = 0;
-	char * original_path = path;
-	int * pos_slash = malloc(10*sizeof(int));
-
-	FILE * f = fopen(disk_path, "rb");
-	int end = 1;
-	while(end==1){
-		if(path[0] == '/'){
-			pos_slash[num_folders] = counter;
-			printf(" HALLO: %d\n", pos_slash[num_folders]);
-			num_folders++;
-		}
-		if(!*path++){
-			if(num_folders>0 && !(pos_slash[num_folders-1] == counter-1)){
-			pos_slash[num_folders] = counter;
-			printf(" HALLO: %d\n", pos_slash[num_folders]);
-			num_folders++;
-			}
+  FILE * f = fopen(disk_path, "r");
+  int end = 1;
+  while(end==1){
+    if(path[0] == '/'){
+      pos_slash[num_folders] = counter;
+      num_folders++;
+    }
+    if(!*path++){
+      if(num_folders>0 && !(pos_slash[num_folders-1] == counter-1)){
+        pos_slash[num_folders] = counter;
+        num_folders++;
+      }
 			else if (num_folders == 0){
 				pos_slash[num_folders] = counter;
-				printf(" HALLO: %d\n", pos_slash[num_folders]);
 				num_folders ++;
 			}
 			end = 0;
@@ -60,18 +56,15 @@ int move_index(char* path, crFILE* p){
 			fread(buffer, sizeof( unsigned char ), 32, f);
 			char folder_name[27];
 			memcpy(folder_name, &buffer[1], 26);
-			printf("FOLDER IN FILE: %s\n", folder_name);
+      //printf("FOLDER IN FILE: %s\n", folder_name);
 			if (buffer[0] == (unsigned char)1 ){
-				printf("Path invalido\n");
 				free(buffer);
 				fclose(f);
 				return 0;
 			} else {
 				if (strcmp(folder, folder_name) == 0){
-					p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
-					p->offset = p->offset + 28;
-					p->entry = i;
-					printf("BLOCK: %d\n", p->block);
+        	p->block = (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31];
+          p->offset = p->offset + 28;
 					break;
 				}
 			}
@@ -109,35 +102,42 @@ blockIndex* find_empty_block(){
 	unsigned char mask = 1;
 	blockIndex* block = malloc(sizeof(blockIndex));
 
-	FILE* file = fopen(disk_path, "rb");
+	FILE* file = fopen(disk_path, "r+b");
 	fseek(file, 2048, SEEK_SET);
 	fread(buffer, 1, 2048*4, file);
-
-	unsigned char * byte = malloc(sizeof(char) * 8);
+	unsigned char byte[8];
 	for (int k = 0; k < 2048*4; k++) {
+		byte[7] = (unsigned char) (buffer[k] & (mask <<0)) != 0;
+		byte[6] = (unsigned char) (buffer[k] & (mask <<1)) != 0;
+    byte[5] = (unsigned char) (buffer[k] & (mask <<2)) != 0;
+    byte[4] = (unsigned char) (buffer[k] & (mask <<3)) != 0;
+    byte[3] = (unsigned char) (buffer[k] & (mask <<4)) != 0;
+    byte[2] = (unsigned char) (buffer[k] & (mask <<5)) != 0;
+    byte[1] = (unsigned char) (buffer[k] & (mask <<6)) != 0;
+    byte[0] = (unsigned char) (buffer[k] & (mask <<7)) != 0;
 		for(int j = 0; j<8; j++){
 
-			block_num++;
-			byte[j] = (buffer[k] & (mask << j)) != 0;
-
-			if (byte[j] == '0') {
+			if (byte[j] == 0) {
 
 				encontrado = 1;
 				block->block_number = block_num;
 				block->byte_number = k;
 				block->bit_number = j;
 
-				memcpy(block->new_byte, byte, 8);
-				// strcpy(block->new_byte, byte);
-				block->new_byte[j] = '1';
+				byte[j] = (unsigned char)1;
+				fseek(file, 2048 + k, SEEK_SET);
+				unsigned char * data = malloc(2*sizeof(unsigned char));
+      	data[0] = (unsigned int)byte[7] * 1 + (unsigned int)byte[6]*2 + (unsigned int)byte[5] * 4 + (unsigned int)byte[4]*8 +(unsigned int)byte[3] * 16 + (unsigned int)byte[2]*32+(unsigned int)byte[1] * 64 + (unsigned int)byte[0]*128;
+				fwrite(data, 1, 1, file);
 				break;
 			}
+			block_num++;
 		}
 		if (encontrado){
 			break;
 		}
 	}
-	free(byte);
+	//free(byte);
 	free(buffer);
 	fclose(file);
 	return block;
@@ -146,16 +146,15 @@ blockIndex* find_empty_block(){
 
 void change_bitmap(blockIndex* block){
 
-	unsigned char old_byte[8];
-	unsigned char new_byte[8];
-
 	unsigned int offset;
 
 	FILE* file = fopen(disk_path, "r+b");
 	offset = 2048 * (block->block_number) + block->byte_number;
+	unsigned char * data = malloc(2*sizeof(unsigned char));
+	//strcpy(data, block->new_byte, 1);
 
 	fseek(file, offset , SEEK_SET);
-	fwrite(block->new_byte, 1, 1, file);
+	fwrite(data, 1, 1, file);
 
 	fclose(file);
 
@@ -223,6 +222,7 @@ void cr_bitmap(){
 				cero++;
 			}
 		}
+		printf("\n");
 	}
 	printf("\nOCUPADOS: %d", uno);
 	printf("\nLIBRES: %d\n", cero);
@@ -244,37 +244,20 @@ de todos los archivos y directorios contenidos en el directorio indicado por pat
 
 // FIXME, creo que no funciona bien, testearla.
 void cr_ls(char* path){
-	FILE * f = fopen(disk_path, "rw");
-	char * folder = strtok(path, "/");
+	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 	move_index(path, &puntero);
-	printf("OFFSET: %d\n", puntero.offset);
-	unsigned char index_block[4];
-
-	int index_block_num = 0;
-	if(puntero.offset > 0){
-		fseek(f, puntero.offset, SEEK_SET);
-		fread(index_block, 1, 4, f);
-		index_block_num = (unsigned int)index_block[2] * 256 + (unsigned int)index_block[3];
-	}
 
 	for( int i = 0; i < 64; i++ ) {
 		fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, f);
-		if ( buffer[0] == (unsigned char)1 ) {
-			printf( "Entrada invalida\n");
-
-		} else if (buffer[0] == (unsigned char)2 ) {
-
+		if (buffer[0] == (unsigned char)2 ) {
 			printf( "DIR %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-
 		} else if (buffer[0] == (unsigned char)4){
 			printf( "FILE %s index: %u\n", buffer + 1, (unsigned int)buffer[30] * 256 + (unsigned int)buffer[31] );
-
-		} else {
-			printf( "Entrada invalida\n");
 		}
 	}
+
 	free(buffer);
 	fclose(f);
 }
@@ -289,9 +272,6 @@ int cr_mkdir(char *foldername){
 	char* path_to_dir = dirfinder(foldername);
 	char* new_dir = basefinder(foldername);
 
-	blockIndex* new_block = find_empty_block();
-	// move_index(path_to_dir, &puntero);
-
 	FILE * f = fopen(disk_path, "r+b");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 
@@ -299,46 +279,46 @@ int cr_mkdir(char *foldername){
 	int existe = cr_exists(foldername);
 
 	if (existe == 1){
-		printf("El directorio %s ya existe en %s", new_dir, path_to_dir);
+		printf("El directorio %s ya existe en %s\n", new_dir, path_to_dir);
 		free(buffer);
 		fclose(f);
 		return 0;
 	}
 
+	blockIndex* new_block = find_empty_block();
+	move_index(path_to_dir, &puntero);
+
 	for( int j = 0; j < 64; j++){
 
-		fseek(f, 32 * j, SEEK_SET);
-		fread(buffer, sizeof( unsigned char ), 32, f);
-
+		fseek(f, 2048*puntero.block + 32 * j, 0);
+		fread(buffer, 1, 32, f);
 		if ( buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4) {
 			printf( "\nCreando directorio %s en %s\n", new_dir, path_to_dir);
 
 			// puntero es solo el numero de bloque
 			unsigned int int_pointer = new_block->block_number;
-			unsigned char aux_pointer[4];
-			unsigned char* pointer = itoa(int_pointer, aux_pointer, 10);
-			// char * ceros = '00';
-			printf("HEI ER DU HER: 1\n");
+			unsigned char aux_pointer[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((int_pointer)>>8) & 0xFF, (unsigned char) (int_pointer) & 0xFF};
+
+			//unsigned char * pointer = itoa(int_pointer, aux_pointer, 10);
+
 			buffer[0] = '2';
-
-
+			unsigned char * number = malloc(2*sizeof(unsigned char));
+			number[0] = (unsigned char)2;
 			// review guardar el puntero como unsigned int, germy no sabe si fuciona como char
 			memcpy(&buffer[1], new_dir, 27);
-			printf("HEI ER DU HER: 2\n");
 			// Se supone que los strings terminan en cero, asi el compilador los indentifica.
 			buffer[27] = 0;
 
-			memcpy(&buffer[28], pointer, 4);
-			printf("HEI ER DU HER: 3\n");
+			memcpy(&buffer[28], aux_pointer, 4);
 
-			fseek(f, 32 * j, SEEK_SET);
-			printf("HEI ER DU HER: 4\n");
+			fseek(f, puntero.block*2048 + 32 * j, SEEK_SET);
+			fwrite(number, 1,1, f);
+			fwrite(new_dir, 1, 27, f);
+			fwrite(aux_pointer, 1, 4, f);
 
-			fwrite(buffer, 1, 32, f);
-			printf("HEI ER DU HER: 5n");
-
+			//fwrite(buffer, 1, 32, f);
 			change_bitmap(new_block);
-			printf("HEI ER DU HER: 6\n");
+			fclose(f);
 			return 1;
 		}
 	}
@@ -354,40 +334,46 @@ Si mode es ‘r’, busca el archivo en la ruta path y retorna un crFILE* que lo
 */
 
 crFILE * cr_open(char * path, char mode){
+	FILE * f = fopen(disk_path, "r+b");
 	crFILE * open_file = malloc(sizeof(crFILE));
 	int existe = move_index(path, open_file);
 
-	if (existe != 0 && mode == 'r'){
+	if (existe != 0){
 		return open_file;
 	}
 	else if (existe == 0 && mode == 'w'){
 		crFILE * nuevo_archivo = malloc(sizeof(crFILE));
-		//int num = find_empty_block();
-		//change_bitmap_value(num);
-		int num = 1200;
+		blockIndex* num = find_empty_block();
 
 		unsigned char * archivo_indice = malloc(32*sizeof(unsigned char));
 
-		unsigned char nombre[28] = "New Germy.txt";
-		unsigned char numero[] = "4";
-		unsigned char new_block[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((num)>>8) & 0xFF, (unsigned char) (num) & 0xFF};
+		unsigned char nombre[27];
+		memcpy(nombre, basefinder(path), 27);
+		unsigned char numero[2];
+		numero[0] = 4;
+		unsigned char new_block[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((num->block_number)>>8) & 0xFF, (unsigned char) (num->block_number) & 0xFF};
 
 		memcpy(&archivo_indice[0], numero, 1);
 		memcpy(&archivo_indice[1], nombre, 27);
 		memcpy(&archivo_indice[27], new_block, 4);
 
-		for (size_t i = 0; i < 32; i++) {
-			printf("archivo_indice[%zu]=%c\n",i, archivo_indice[i]);
+		char * dir = dirfinder(path);
+		int directorio = move_index(dir, &puntero);
+		unsigned char * buffer = malloc(32*sizeof(unsigned char));
+
+		for( int j = 0; j < 64; j++){
+			fseek(f, 2048*puntero.block + 32 * j, 0);
+			fread(buffer, 1, 32, f);
+			if ( buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4) {
+				fseek(f, 2048*puntero.block + 32 * j, 0);
+				fwrite(archivo_indice, 1, 32, f);
+				fclose(f);
+			}
 		}
-
-		printf("NUEVO NOMBRE: %s\n", archivo_indice);
-
-		//Crear nuevo archivo
-
-		//Cambiar bit del bloque en bitmap
 
 		return open_file;
 	}
+
 	else{
 		printf("ERROR\n");
 		return NULL;
@@ -401,49 +387,49 @@ Esto es importante si nbytes es mayor a la cantidad de Byte restantes en el arch
 desde la posicio ́n del archivo inmediatamente posterior a la u ́ltima posicio ́n le ́ıda por un llamado a read.*/
 
 int cr_read(crFILE * file_desc, void* buffer, int nbytes){
-	// FILE * f = fopen(disk_path, "r");
+	FILE * f = fopen(disk_path, "rb");
 
-	// // FINDING FILE SIZE
-	// unsigned char * size = malloc(4*sizeof(unsigned char));
-	// fseek(f, 2048*file_desc->block, SEEK_SET);
-	// fread(size, 1, 4, f);
-	// int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
+	// FINDING FILE SIZE
+	unsigned char * size = malloc(4*sizeof(unsigned char));
+	fseek(f, 2048*file_desc->block, SEEK_SET);
+	fread(size, 1, 4, f);
+	int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
 
-	// // FINDING NUMBER OF HARDLINKS
-	// unsigned char hardlinks[4];
-	// fseek(f, 2048*file_desc->block + 4, SEEK_SET);
-	// fread(hardlinks, 1, 4, f);
-	// int num_hardlinks = (int)hardlinks[0]*16777216 + (int)hardlinks[1] * 65536 + (int)hardlinks[2] * 256 + (int)hardlinks[3];
+	// FINDING NUMBER OF HARDLINKS
+	unsigned char hardlinks[4];
+	fseek(f, 2048*file_desc->block + 4, SEEK_SET);
+	fread(hardlinks, 1, 4, f);
+	int num_hardlinks = (int)hardlinks[0]*16777216 + (int)hardlinks[1] * 65536 + (int)hardlinks[2] * 256 + (int)hardlinks[3];
 
-	// // HOW MANY BYTES TO READ
-	// if (nbytes > file_size) {
-	// 	nbytes = file_size;
-	// }
+	// HOW MANY BYTES TO READ
+	if (nbytes > file_size) {
+		nbytes = file_size;
+	}
 
-	// int num_blocks =  ceil(nbytes/2048.0);
-	// unsigned char * punteros = malloc(4*num_blocks*sizeof(unsigned char));
-	// unsigned char * buffer1 = malloc(2048*sizeof(unsigned char));
-	// int to_read = 2048;
+	int num_blocks =  ceil(nbytes/2048.0);
+	unsigned char * punteros = malloc(num_blocks*sizeof(unsigned char));
+	unsigned char * buffer1 = malloc(2049*sizeof(unsigned char));
+	int to_read = 2048;
 
 
-	// for(int i = 0;i<num_blocks;i++){
-	// 	if (i == num_blocks - 1){
-	// 		to_read = nbytes - 2048*i;
-	// 	}
+	for(int i = 0;i<num_blocks;i++){
+		if (i == num_blocks - 1){
+			to_read = nbytes - 2048*i;
+		}
 
-	// 	fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
-	// 	fread(punteros, 1, 4, f);
-	// 	int offset = (int)punteros[2]* 256 + (int)punteros[3];
-	// 	printf("read from block %d\n", offset);
-	// 	fseek(f, 2048*offset, SEEK_SET);
-	// 	fread(buffer1, 1, to_read, f);
-	// 	printf("DATA IN BLOCK: %s\n", buffer1);
-	// }
+		fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
+		fread(punteros, 1, 4, f);
+		int offset = (int)punteros[2]* 256 + (int)punteros[3];
+		printf("read from block %d\n", offset);
+		fseek(f, 2048*offset, SEEK_SET);
+		fread(buffer, 1, to_read, f);
+		printf("DATA IN BLOCK: %s\n", buffer);
+	}
 
-	// free(punteros);
-	// free(buffer1);
-	// fclose(f);
-	// return nbytes;
+	free(punteros);
+	free(buffer1);
+	fclose(f);
+	return nbytes;
 }
 
 /*
@@ -519,6 +505,7 @@ Función para cerrar archivos. Cierra el archivo indicado por file desc. Debe ga
 retorna, el archivo se encuentra actualizado en disco.*/
 
 int cr_close(crFILE* file_desc){
+	free(file_desc);
 	return 0;
 }
 
@@ -641,6 +628,10 @@ int cr_hardlink(char* orig, char* dest){
 	char * buffer = malloc(sizeof(char) * 32);
 	char * dir = dirfinder(orig);
 	char * filename = basefinder(orig);
+	if(strcmp(dir, ".") == 0){
+		dir = "";
+	}
+	move_index(dir, &puntero);
 
 	// Voy al dir del hardlink y veo si puedo crearlo, move_index ya setteo el puntero.
 	for(int i = 0; i < 64; i++){
@@ -648,10 +639,11 @@ int cr_hardlink(char* orig, char* dest){
 		fseek(file, dir_pointer * 2048 + i * 32, SEEK_SET);
 		fread(buffer, sizeof( unsigned char ), 32, file);
 
-		if (buffer[0] != (unsigned char)2 || buffer[0] != (unsigned char)4){
+		if (buffer[0] != (unsigned char)2 && buffer[0] != (unsigned char)4){
 			// Si no es ni archivo ni directorio, es una entrada libre.
-			memcpy(&buffer[0], "4", 1);
-			memcpy(&buffer[1], filename, 27);
+
+			buffer[0]= 4;
+			memcpy(&buffer[1], basefinder(dest), 27);
 
 			// Reviso el archivo al que le crearé el hardlink.
 			// nuevamente move_index setea al puntero
@@ -662,19 +654,28 @@ int cr_hardlink(char* orig, char* dest){
 				// unsigned int de 4 bytes para la cantidad de hardlinks
 
 				unsigned int int_pointer = puntero.block;
-				unsigned char aux_pointer[4];
-				unsigned char * bloque_archivo = itoa(int_pointer, aux_pointer, 10);
-				memcpy(&buffer[27], bloque_archivo, 4);
+				printf("PUNTERO BLOCK: %d\n", puntero.block);
+				unsigned char mask = 1;
+				//unsigned char aux_pointer[4];
+				//unsigned char * bloque_archivo = itoa(int_pointer, aux_pointer, 10);
+				unsigned char aux_pointer[4] = {(unsigned char) 0, (unsigned char) 0, (unsigned char) ((puntero.block)>>8) & 0xFF, (unsigned char) (puntero.block) & 0xFF};
+				memcpy(&buffer[27], aux_pointer, 4);
+				fseek(file, dir_pointer * 2048 + i * 32, SEEK_SET);
+				fwrite(buffer, 1, 32, file);
 
 				fseek(file, puntero.block * 2048 + 4, SEEK_SET);
 				fread(buffer_archivo, 1, 4 , file);
-				unsigned int hl_counter = (unsigned int)atoi(buffer_archivo);
+				unsigned int hl_counter = (int)buffer_archivo[0] * 16777216 + (int)buffer_archivo[1] * 65536 + (int)buffer_archivo[2] * 256 + (int)buffer_archivo[3];
 				hl_counter++;
 
 				unsigned char aux[4];
-				unsigned char * hl_counter_char = itoa(hl_counter, aux, 10);
+				aux_pointer[3] = (unsigned char) (hl_counter & (mask <<3)) != 0;
+		    aux_pointer[2] = (unsigned char) (hl_counter & (mask <<2)) != 0;
+		    aux_pointer[1] = (unsigned char) (hl_counter & (mask <<1)) != 0;
+		    aux_pointer[0] = (unsigned char) (hl_counter & (mask <<0)) != 0;
 				// review Cuando escribo, debo escribir el numero como int o char?
-				fwrite(hl_counter_char, 1, 4,file);
+				fseek(file, puntero.block * 2048 + 4, SEEK_SET);
+				fwrite(aux, 1, 4,file);
 				free(buffer_archivo);
 				free(buffer);
 				fclose(file);
@@ -698,6 +699,83 @@ Funcio ́nqueseencargadecopiarunarchivoouna ́rbol de directorios (es decir, un 
 del disco, referenciado por orig, hacia un nuevo archivo o directorio de ruta dest en su computador.*/
 
 int cr_unload(char* orig, char* dest){
+	FILE * f = fopen(disk_path, "rb");
+	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
+	move_index(orig, &puntero);
+	if(strchr(basefinder(orig), '.')){
+		char * dir = malloc(100*sizeof(char));
+		strcpy(dir, dest);
+		strcat(dir, "/");
+		strcat(dir, basefinder(orig));
+    FILE * archivo_nuevo = fopen(dir, "wb");
+
+		unsigned char * size = malloc(4*sizeof(unsigned char));
+		fseek(f, 2048*puntero.block, SEEK_SET);
+		fread(size, 1, 4, f);
+		int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
+
+		void * content = malloc(file_size*sizeof(void));
+		crFILE * nuevo = cr_open(orig, 'r');
+		cr_read(nuevo, content, file_size);
+		fwrite(content, 1, file_size, archivo_nuevo);
+		fclose(archivo_nuevo);
+		fclose(f);
+  }
+	else{
+		for( int i = 0; i < 64; i++ ) {
+			fseek(f, 2048*puntero.block + 32 * i, SEEK_SET);
+			fread(buffer, sizeof( unsigned char ), 32, f);
+			fclose(f);
+			if (buffer[0] == (unsigned char)2 ) {
+				char * path_nuevo = malloc(100*sizeof(unsigned char));
+				char nombre_dir[27];
+				memcpy(nombre_dir, &buffer[1], 27);
+				strcpy(path_nuevo, orig);
+				strcat(path_nuevo, "/");
+				strcat(path_nuevo, nombre_dir);
+				char * path_dest = malloc(100*sizeof(unsigned char));
+				strcpy(path_dest, dest);
+				strcat(path_dest, "/");
+				strcat(path_dest, nombre_dir);
+				cr_unload(path_nuevo, path_dest);
+
+			} else if (buffer[0] == (unsigned char)4){
+				// NOMBRE DEL ARCHIVO NUEVO
+				char nombre_dir[27];
+				memcpy(nombre_dir, &buffer[1], 27);
+				char * dir = malloc(100*sizeof(char));
+				strcpy(dir, dest);
+				strcat(dir, "/");
+				strcat(dir, nombre_dir);
+
+
+				// ESCRIBIR ARCHIVO AL COMPUTADOR
+				FILE * f = fopen(disk_path, "rb");
+				unsigned char * size = malloc(4*sizeof(unsigned char));
+				fseek(f, 2048*puntero.block, SEEK_SET);
+				fread(size, 1, 4, f);
+				int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
+
+				unsigned char * content = malloc(file_size*sizeof(unsigned char));
+				char * file_to_read = malloc(100*sizeof(char));
+				strcpy(file_to_read, orig);
+				strcat(file_to_read, "/");
+				strcat(file_to_read, nombre_dir);
+				printf("FILE TO READ: %s\n", file_to_read);
+				crFILE* nuevo = cr_open(file_to_read, 'r');
+				printf("LEVER HER 1\n");
+				printf("FILLOKASJON: %u\n", nuevo->block);
+				cr_read(nuevo, content, file_size);
+				printf("LEVER HER 2\n");
+				FILE * archivo_nuevo = fopen(dir, "r+b");
+				fwrite(content, 1, file_size, archivo_nuevo);
+				printf("LEVER HER 3\n");
+				fclose(archivo_nuevo);
+
+			}
+		}
+	}
+	fclose(f);
 	return 0;
 }
 

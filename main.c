@@ -22,6 +22,7 @@ printf("WRITE OK\n");
 void * output = malloc(400 * sizeof(unsigned int));
 cr_read(germy, output, 400);
 printf("READ OK\n");
+cr_close(germy);
 free(output);
 */
 
