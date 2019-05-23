@@ -241,7 +241,6 @@ int cr_exists(char* path){
 Funcion para listar los elementos de un directorio del disco.Imprime en pantalla los nombres
 de todos los archivos y directorios contenidos en el directorio indicado por path.*/
 
-// FIXME, creo que no funciona bien, testearla.
 void cr_ls(char* path){
 	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
@@ -274,7 +273,6 @@ int cr_mkdir(char *foldername){
 	FILE * f = fopen(disk_path, "r+b");
 	unsigned char * buffer = malloc( sizeof( unsigned char ) * 32 );
 
-	// Review, cr_exists también llama a move_index, por lo que no es necesario llamar a move_index antes.
 	int existe = cr_exists(foldername);
 
 	if (existe == 1){
@@ -410,29 +408,92 @@ int cr_read(crFILE * file_desc, void* buffer, int nbytes){
 
 	// HOW MANY BYTES TO READ
 	if (nbytes > file_size) {
+		printf("\nNo puedes leer mas bytes de los bytes del archivo\n");
 		nbytes = file_size;
 	}
 
+	int dir_indirecto = 0;
+
 	int num_blocks =  ceil(nbytes/2048.0);
-	unsigned char * punteros = malloc(num_blocks*sizeof(unsigned char));
+	unsigned char * punteros = malloc(num_blocks * sizeof(unsigned char));
 	unsigned char * buffer1 = malloc(2049*sizeof(unsigned char));
 	int to_read = 2048;
 
 
-	for(int i = 0;i<num_blocks;i++){
-		if (i == num_blocks - 1){
-			to_read = nbytes - 2048*i;
-		}
 
-		fseek(f, file_desc->block*2048 + 8 + i*4, SEEK_SET);
-		fread(punteros, 1, 4, f);
-		int offset = (int)punteros[2]* 256 + (int)punteros[3];
-		printf("read from block %d\n", offset);
-		fseek(f, 2048*offset, SEEK_SET);
-		fread(buffer, 1, to_read, f);
-		printf("DATA IN BLOCK: %s\n", buffer);
+	if (num_blocks > 500){
+		dir_indirecto = 1;
 	}
 
+	if (dir_indirecto == 0){
+
+		for( int i = 0;i < num_blocks;i++ ){
+			if (i == num_blocks - 1){
+				to_read = nbytes - 2048 * i;
+			}
+
+			fseek(f, file_desc->block * 2048 + 8 + i * 4, SEEK_SET);
+			fread(punteros, 1, 4, f);
+
+			int offset = (int)punteros[2]* 256 + (int)punteros[3];
+
+			printf("read from block %d\n", offset);
+			fseek(f, 2048 * offset, SEEK_SET);
+			fread(buffer, 1, to_read, f);
+			printf("DATA IN BLOCK: %s\n", buffer);
+		}
+		free(punteros);
+		free(buffer1);
+		fclose(f);
+		return nbytes;
+
+	} else {
+		for(int i = 0; i < 500 ;i++){
+			to_read = 500;
+			fseek(f, file_desc->block * 2048 + 8 + i * 4, SEEK_SET);
+			fread(punteros, 1, 4, f);
+			int offset = (int)punteros[2]* 256 + (int)punteros[3];
+			printf("read from block %d\n", offset);
+			fseek(f, 2048 * offset, SEEK_SET);
+			fread(buffer, 1, to_read, f);
+			printf("DATA IN BLOCK: %s\n", buffer);
+		}
+
+		for(int i = 500; i < 510; i++){
+
+			
+			fseek(f, file_desc->block * 2048 + 8 + i * 4, SEEK_SET);
+			fread(punteros, 1, 4, f);
+			int offset = (int)punteros[2]* 256 + (int)punteros[3];
+
+			int restantes = file_size - 500 * 2048 - 2048 * i;
+			
+			if (restantes > 512 * 2048){
+				num_blocks = 512;
+			} else {
+				num_blocks = ceil(restantes/2048.0);
+			}
+
+			for( int k = 0; k < num_blocks; k++){
+				if (k == num_blocks - 1){
+					to_read = nbytes - 2048 * i;
+				}
+				fseek(f, offset * 2048 + k * 4, SEEK_SET);
+				fread(punteros, 1, 4, f);
+				int offset_indirecto = (int)punteros[2]* 256 + (int)punteros[3];
+
+				printf("read from indirecto block %d\n", offset_indirecto);
+				fseek(f, 2048 * offset_indirecto, SEEK_SET);
+				fread(buffer, 1, to_read, f);
+				printf("DATA IN BLOCK: %s\n", buffer);
+
+			}
+		}
+		free(punteros);
+		free(buffer1);
+		fclose(f);
+		return nbytes;
+	}
 	free(punteros);
 	free(buffer1);
 	fclose(f);
@@ -532,7 +593,7 @@ aumentando la cantidad de referencias al archivo original.*/
 int cr_hardlink(char* orig, char* dest){
 
 	// REVIEW supuesto, char* orig es un archivo y char* dest un directorio.
-	// FIXME se crea el hardlink pero no esta bien el puntero al archivo, el hardlink apunta a un archivo vacio
+	// REVIEW se crea el hardlink pero no esta bien el puntero al archivo, el hardlink a veces apunta a un archivo vacio.
 	int existe = move_index(dest, &puntero);
 	if (existe == 1){
 		printf("Ya existe un hardlink con este nombre en este directorio\n");
@@ -611,28 +672,31 @@ int cr_hardlink(char* orig, char* dest){
 }
 
 /*
-Funcio ́nqueseencargadecopiarunarchivoouna ́rbol de directorios (es decir, un directorio y todos sus contenidos)
+Funcio ́n que se encarga de copiar un archivo o un a ́rbol de directorios (es decir, un directorio y todos sus contenidos)
 del disco, referenciado por orig, hacia un nuevo archivo o directorio de ruta dest en su computador.*/
 
 int cr_unload(char* orig, char* dest){
 	FILE * f = fopen(disk_path, "rb");
 	unsigned char * buffer = malloc( sizeof(unsigned char) * 32 );
-	move_index(orig, &puntero);
+
+	int existe = move_index(orig, &puntero);
+
 	if(strchr(basefinder(orig), '.')){
 		char * dir = malloc(100*sizeof(char));
 		strcpy(dir, dest);
 		strcat(dir, "/");
 		strcat(dir, basefinder(orig));
-    FILE * archivo_nuevo = fopen(dir, "wb");
+    	FILE * archivo_nuevo = fopen(dir, "wb");
 
 		unsigned char * size = malloc(4*sizeof(unsigned char));
 		fseek(f, 2048*puntero.block, SEEK_SET);
 		fread(size, 1, 4, f);
 		int file_size = (int)size[0] * 16777216 + (int)size[1] * 65536 + (int)size[2] * 256 + (int)size[3];
 
-		void * content = malloc(file_size*sizeof(void));
+		void * content = malloc(file_size * sizeof(void));
 		crFILE * nuevo = cr_open(orig, 'r');
 		cr_read(nuevo, content, file_size);
+
 		fwrite(content, 1, file_size, archivo_nuevo);
 		fclose(archivo_nuevo);
 		fclose(f);

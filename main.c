@@ -8,9 +8,9 @@ int main(int argc, char *argv[]) {
   else{
     cr_mount("./simdiskfilled.bin");
   }
-  crFILE * new = cr_open("hello_there.txt", 'w');
-  cr_ls("");
-
+  // crFILE * new = cr_open("hello_there.txt", 'w');
+  // cr_ls("");
+  cr_unload("free.jpg", "/Users/normanoliden/Desktop");
   //printf("MKDIR\n");
   //cr_mkdir("memes/mari");
   //printf("LS ANDRE\n");
