@@ -142,7 +142,7 @@ blockIndex* find_empty_block(){
 	}
     
     if(encontrado == 0){
-        printf("El disco es lleno. No hay suficiente espacio");
+        printf("El disco es lleno. No hay suficiente espacio!!");
         return 0;
     }
                
