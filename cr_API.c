@@ -546,6 +546,7 @@ int cr_hardlink(char* orig, char* dest){
 	if(strcmp(dir, ".") == 0){
 		dir = "";
 	}
+
 	move_index(dir, &puntero);
 
 	// Voy al dir del hardlink y veo si puedo crearlo, move_index ya setteo el puntero.
@@ -585,9 +586,9 @@ int cr_hardlink(char* orig, char* dest){
 
 				unsigned char aux[4];
 				aux_pointer[3] = (unsigned char) (hl_counter & (mask <<3)) != 0;
-		    aux_pointer[2] = (unsigned char) (hl_counter & (mask <<2)) != 0;
-		    aux_pointer[1] = (unsigned char) (hl_counter & (mask <<1)) != 0;
-		    aux_pointer[0] = (unsigned char) (hl_counter & (mask <<0)) != 0;
+				aux_pointer[2] = (unsigned char) (hl_counter & (mask <<2)) != 0;
+				aux_pointer[1] = (unsigned char) (hl_counter & (mask <<1)) != 0;
+				aux_pointer[0] = (unsigned char) (hl_counter & (mask <<0)) != 0;
 				// review Cuando escribo, debo escribir el numero como int o char?
 				fseek(file, puntero.block * 2048 + 4, SEEK_SET);
 				fwrite(aux, 1, 4,file);
