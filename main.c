@@ -6,9 +6,12 @@ int main(int argc, char *argv[]) {
     cr_mount(argv[1]);
   }
   else{
-    cr_mount("./simdiskfilled.bin");
+    cr_mount("./one_file_disk.bin");
   }
-  cr_rm("germy.txt");
+
+  cr_bitmap();
+  cr_rm("Program in C.mkv");
+  cr_bitmap();
 
 /*
 void * write = malloc(2000 * sizeof(unsigned int));
